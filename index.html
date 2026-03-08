@@ -16,18 +16,10 @@
         .active { display: flex; }
         .nav-bar { height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); background: var(--panel); display: flex; align-items: center; padding-inline: 15px; border-bottom: 1px solid #101921; flex-shrink: 0; z-index: 20; }
         
-        .animated-title { 
-            background: linear-gradient(90deg, #fff, var(--accent), #fff); 
-            background-size: 200% auto; 
-            color: transparent; 
-            -webkit-background-clip: text; 
-            animation: shine 3s linear infinite; 
-            font-size: 19px; 
-            font-weight: 800; 
-        }
+        .animated-title { background: linear-gradient(90deg, #fff, var(--accent), #fff); background-size: 200% auto; color: transparent; -webkit-background-clip: text; animation: shine 3s linear infinite; font-size: 19px; font-weight: 800; }
         @keyframes shine { to { background-position: 200% center; } }
         
-        .status-text { font-size: 12px; color: #708499; display: block; font-weight: normal; margin-top: -2px; }
+        .status-text { font-size: 12px; display: block; font-weight: normal; margin-top: -2px; transition: color 0.3s; }
         
         .input-main { width: 100%; background: var(--panel); border: none; color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; outline: none; font-size: 15px; }
         .btn { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
@@ -70,14 +62,14 @@
         <h1 style="text-align: center; margin-bottom: 40px; font-size: 40px;"><i class="fa-solid fa-paper-plane" style="color:var(--accent)"></i></h1>
         <div id="form-reg">
             <input type="text" id="reg-name" class="input-main" placeholder="Имя">
-            <input type="text" id="reg-user" class="input-main" placeholder="@username">
+            <input type="text" id="reg-user" class="input-main" placeholder="Никнейм (без @)">
             <input type="password" id="reg-pass" class="input-main" placeholder="Пароль">
             <input type="password" id="reg-pass2" class="input-main" placeholder="Повторите пароль">
             <button onclick="auth.register()" class="btn" style="margin-top: 10px;">Создать аккаунт</button>
             <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Уже есть аккаунт? Войти</p>
         </div>
         <div id="form-login" style="display:none;">
-            <input type="text" id="log-id" class="input-main" placeholder="@username">
+            <input type="text" id="log-id" class="input-main" placeholder="Никнейм (без @)">
             <input type="password" id="log-pass" class="input-main" placeholder="Пароль">
             <button onclick="auth.login()" class="btn" style="margin-top: 10px;">Войти</button>
             <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Создать аккаунт</p>
@@ -228,6 +220,8 @@
 </div>
 
 <script>
+    if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
+
     let myDeviceId = localStorage.getItem('midlegram_device');
     if(!myDeviceId) { myDeviceId = Math.random().toString(36).substring(2); localStorage.setItem('midlegram_device', myDeviceId); }
 
@@ -240,8 +234,25 @@
         return "Web Browser";
     }
 
-    function getBadge(u) { return ['@developer', '@zxcswatme'].includes(u) ? '<i class="fa-solid fa-circle-check" style="color:#00a8ff; margin-left:5px; font-size:14px;"></i>' : ''; }
-    function setAv(el, u) { if(u && u.avatarUrl) { el.style.backgroundImage = `url(${u.avatarUrl})`; el.innerText = ''; } else if(u) { el.style.backgroundImage = ''; el.innerText = u.name[0]; el.style.background = u.avatarColor; } }
+    function getBadge(u) { 
+        if(!u) return '';
+        const name = u.startsWith('@') ? u.toLowerCase() : '@' + u.toLowerCase();
+        return ['@developer', '@zxcswatme'].includes(name) ? '<i class="fa-solid fa-circle-check" style="color:#00a8ff; margin-left:5px; font-size:14px;"></i>' : ''; 
+    }
+    
+    function setAv(el, u) { 
+        if(u && u.avatarUrl) { el.style.backgroundImage = `url(${u.avatarUrl})`; el.innerText = ''; } 
+        else if(u) { el.style.backgroundImage = ''; el.innerText = (u.name || 'U')[0].toUpperCase(); el.style.background = u.avatarColor || '#3390ec'; } 
+    }
+
+    function formatLastSeen(dateStr) {
+        if(!dateStr) return "Был(а) недавно";
+        const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
+        if(diff < 5) return "Был(а) только что";
+        if(diff < 60) return `Был(а) ${Math.floor(diff)} минут назад`;
+        if(diff < 24*60) return "Был(а) сегодня";
+        return "Был(а) давно";
+    }
 
     const socket = io();
     let me = null;
@@ -271,14 +282,14 @@
             l.style.display = l.style.display === 'none' ? 'block' : 'none';
         },
         async register() {
-            const data = { name: document.getElementById('reg-name').value, username: document.getElementById('reg-user').value, password: document.getElementById('reg-pass').value };
+            const data = { name: document.getElementById('reg-name').value, username: document.getElementById('reg-user').value.replace('@',''), password: document.getElementById('reg-pass').value };
             if(!data.name || !data.username || !data.password) return;
             if(data.password !== document.getElementById('reg-pass2').value) return;
             const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
             if(res.ok) { localStorage.setItem('midlegram_app', JSON.stringify((await res.json()).user)); location.reload(); }
         },
         async login() {
-            const login = document.getElementById('log-id').value;
+            const login = document.getElementById('log-id').value.replace('@','');
             const password = document.getElementById('log-pass').value;
             if(!login || !password) return;
             const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login, password }) });
@@ -286,21 +297,27 @@
         }
     };
 
+    socket.on('connect', () => {
+        if(me) socket.emit('identify', { username: me.username, deviceId: myDeviceId, deviceName: getDeviceName() });
+    });
+
     async function checkNet() {
         const s = document.getElementById('net-status');
         if(!navigator.onLine) { s.innerText = "Ожидание сети..."; s.style.color = "var(--danger)"; return; }
-        try { await fetch('/api/ping'); s.innerText = ""; s.style.color = "var(--accent)"; } 
-        catch(e) { s.innerText = "Соединение..."; s.style.color = "var(--gold)"; }
+        try { 
+            await fetch('/api/ping'); 
+            s.innerText = "В сети"; 
+            s.style.color = "var(--accent)"; 
+            setTimeout(()=> { s.innerText = ""; }, 2000);
+        } 
+        catch(e) { s.innerText = "Обновление..."; s.style.color = "var(--gold)"; }
     }
 
     async function init() {
         if(!me) { document.getElementById('scr-auth').classList.add('active'); return; }
         document.getElementById('scr-auth').classList.remove('active');
         document.getElementById('scr-main').classList.add('active');
-        
-        socket.emit('identify', { username: me.username, deviceId: myDeviceId, deviceName: getDeviceName() });
-        checkNet(); setInterval(checkNet, 3000);
-        
+        checkNet(); setInterval(checkNet, 5000);
         renderSettings(); search('');
     }
 
@@ -313,7 +330,7 @@
         const res = await fetch(`/api/search?q=${q}`);
         const { users, chats } = await res.json();
         let html = '';
-        users.filter(u => u.username !== me.username).forEach(u => html += `<div class="row" onclick="openChat('${u.username}', '${u.name}', '${encodeURIComponent(JSON.stringify(u))}', false, false, 'pm', null, true)"><div class="avatar" style="background:${u.avatarColor}; background-image:url(${u.avatarUrl||''})">${u.avatarUrl?'':u.name[0]}</div><div style="flex:1;"><b>${u.name}${getBadge(u.username)}</b><br><small style="color:#708499">${u.username}</small></div></div>`);
+        users.filter(u => u.username !== me.username).forEach(u => html += `<div class="row" onclick="openChat('${u.username}', '${u.name}', '${encodeURIComponent(JSON.stringify(u))}', false, false, 'pm', null, true)"><div class="avatar" style="background:${u.avatarColor}; background-image:url(${u.avatarUrl||''})">${u.avatarUrl?'':u.name[0].toUpperCase()}</div><div style="flex:1;"><b>${u.name}${getBadge(u.username)}</b><br><small style="color:#708499">@${u.username}</small></div></div>`);
         chats.forEach(c => html += `<div class="row" onclick="openChat('${c.username}', '${c.title}', '${encodeURIComponent(JSON.stringify({name:c.title, avatarColor:'#3390ec'}))}', true, ${c.admins.includes(me.username)}, '${c.type}', '${encodeURIComponent(JSON.stringify(c.pinnedMessage||null))}', ${c.members.includes(me.username)})"><div class="avatar" style="background:#3390ec"><i class="fa-solid ${c.type==='channel'?'fa-bullhorn':'fa-users'}"></i></div><div style="flex:1;"><b>${c.title}</b><br><small style="color:#708499">${c.username}</small></div></div>`);
         document.getElementById('contacts').innerHTML = html;
     }
@@ -352,9 +369,13 @@
 
         if(!isGroup) {
             const st = await fetch('/api/user/status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user}) });
-            document.getElementById('chat-status-sub').innerText = (await st.json()).online ? "online" : "offline";
+            const statusData = await st.json();
+            const sub = document.getElementById('chat-status-sub');
+            if(statusData.online) { sub.innerText = "В сети"; sub.style.color = "var(--accent)"; }
+            else { sub.innerText = formatLastSeen(statusData.lastSeen); sub.style.color = "#708499"; }
         } else {
             document.getElementById('chat-status-sub').innerText = chatType==='channel' ? 'Канал' : 'Группа';
+            document.getElementById('chat-status-sub').style.color = "#708499";
         }
 
         const msgsRes = await fetch('/api/messages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({from:me.username, to:user}) });
@@ -373,8 +394,9 @@
     socket.on('is_typing', (data) => {
         if (curChat && curChat.user === data.from) {
             const sub = document.getElementById('chat-status-sub');
-            const old = sub.innerText; sub.innerText = "печатает..."; clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => { sub.innerText = old; }, 2000);
+            const old = sub.innerText; const oldCol = sub.style.color;
+            sub.innerText = "печатает..."; sub.style.color = "var(--accent)"; clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => { sub.innerText = old; sub.style.color = oldCol; }, 2000);
         }
     });
 
@@ -409,11 +431,16 @@
                 stream.getTracks().forEach(track => track.stop());
             };
             mediaRecorder.start(); btn.style.color = 'var(--danger)';
-        } catch (err) {}
+        } catch (err) { alert("Микрофон/Камера недоступны"); }
     }
 
     socket.on('new_msg', (data) => {
-        if(me.settings.notifications && data.from !== me.username) sounds.msg.play().catch(()=>{});
+        if(me.settings.notifications && data.from !== me.username) {
+            sounds.msg.play().catch(()=>{});
+            if (Notification.permission === "granted" && document.hidden) {
+                new Notification(data.from, { body: data.text || "Новое медиа", icon: 'https://cdn-icons-png.flaticon.com/512/9068/9068642.png' });
+            }
+        }
         if(curChat && (curChat.user === data.from || curChat.user === data.to)) {
             addMsg({ ...data, type: data.from === me.username ? 'out' : 'in' });
         }
@@ -442,7 +469,7 @@
     function adminAction(type) {
         let user = prompt("Введите @username участника:");
         if(!user) return;
-        socket.emit('action', { type, user, message: null, admin: me.username, chat: curChat.user });
+        socket.emit('action', { type, user: user.replace('@',''), message: null, admin: me.username, chat: curChat.user });
         toggleAdminPanel();
     }
 
@@ -466,7 +493,7 @@
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             socket.emit('call_user', { offer, to: curChat.user, from: me.username });
-        } catch(e) { endCall(); }
+        } catch(e) { endCall(); alert("Доступ к микрофону запрещен"); }
     }
 
     socket.on('call_made', async (data) => {
@@ -481,6 +508,10 @@
         document.getElementById('call-status').innerText = 'Входящий звонок...'; 
         document.getElementById('btn-accept-call').style.display = 'flex';
         sounds.ring.play().catch(()=>{});
+        
+        if (Notification.permission === "granted" && document.hidden) {
+            new Notification("Входящий звонок", { body: `Звонит ${callerInfo.name || data.from}`, icon: 'https://cdn-icons-png.flaticon.com/512/9068/9068642.png' });
+        }
     });
 
     async function acceptCall() {
@@ -507,8 +538,8 @@
         sounds.ring.pause(); sounds.ring.currentTime = 0;
         if(peerConnection) peerConnection.close(); if(localStream) localStream.getTracks().forEach(t => t.stop());
         document.getElementById('modal-call').style.display = 'none';
-        if(curChat) socket.emit('end_call', { to: curChat.user });
-        else if(incomingCallData) socket.emit('end_call', { to: incomingCallData.from });
+        if(curChat && curChat.user) socket.emit('end_call', { to: curChat.user });
+        else if(incomingCallData && incomingCallData.from) socket.emit('end_call', { to: incomingCallData.from });
         incomingCallData = null;
     }
     socket.on('call_ended', () => {
@@ -519,7 +550,7 @@
 
     function renderSettings() {
         document.getElementById('my-name').innerHTML = `${me.name}${getBadge(me.username)}`;
-        document.getElementById('my-username').innerText = me.username;
+        document.getElementById('my-username').innerText = '@' + me.username;
         setAv(document.getElementById('my-av'), me);
         document.getElementById('my-gold-badge').innerHTML = me.isGold ? '<span style="background:var(--gold); color:#000; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold;"><i class="fa-solid fa-star"></i> GOLD</span>' : '';
         document.getElementById('tog-priv').className = `switch ${me.settings.hideData ? 'on' : ''}`;
@@ -552,7 +583,7 @@
         const res = await fetch(`/api/search?q=${curChat.user}`);
         const u = (await res.json()).users[0];
         document.getElementById('p-name').innerHTML = `${u.name}${getBadge(u.username)}`;
-        document.getElementById('p-username').innerText = u.username;
+        document.getElementById('p-username').innerText = '@' + u.username;
         setAv(document.getElementById('p-av'), u);
         document.getElementById('p-bio').innerText = u.settings.hideData ? "Информация скрыта настройками приватности" : "Midlegram user";
         document.getElementById('modal-profile').style.display = 'flex';
