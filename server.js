@@ -68,6 +68,7 @@ app.post('/api/register', async (req, res) => {
         await sendMail(email, otp);
         res.json({ success: true, maskedEmail: email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
     } catch (e) { 
+        console.log("Register Error:", e);
         res.status(500).send("Error"); 
     }
 });
@@ -83,7 +84,10 @@ app.post('/api/login', async (req, res) => {
             await sendMail(user.email, otp);
             res.json({ success: true, maskedEmail: user.email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
         } else res.status(401).send("Error");
-    } catch(e) { res.status(500).send("Error"); }
+    } catch(e) { 
+        console.log("Login Error:", e);
+        res.status(500).send("Error"); 
+    }
 });
 
 app.post('/api/verify', async (req, res) => {
