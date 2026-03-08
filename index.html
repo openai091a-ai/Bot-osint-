@@ -14,7 +14,7 @@
         #app-container { width: 100%; max-width: 480px; height: 100vh; position: relative; background: var(--bg); overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.8); display: flex; flex-direction: column; }
         .screen { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--bg); }
         .active { display: flex; }
-        .nav-bar { height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); background: var(--panel); display: flex; align-items: center; padding-inline: 15px; border-bottom: 1px solid #101921; flex-shrink: 0; }
+        .nav-bar { height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); background: var(--panel); display: flex; align-items: center; padding-inline: 15px; border-bottom: 1px solid #101921; flex-shrink: 0; z-index: 20; }
         .input-main { width: 100%; background: var(--panel); border: none; color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; outline: none; font-size: 15px; }
         .btn { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
         .btn:active { transform: scale(0.98); opacity: 0.9; }
@@ -78,13 +78,13 @@
             <div style="flex:1; text-align:center;"><b id="status" style="display:block; font-size:17px; font-weight: 600;">Midlegram</b></div>
             <i class="fa-solid fa-magnifying-glass icon-btn" onclick="toggleSearch()"></i>
         </div>
-        <div id="search-box" style="display:none; padding:10px; background:var(--panel); flex-shrink: 0;">
+        <div id="search-box" style="display:none; padding:10px; background:var(--panel); z-index: 10;">
             <input type="text" id="sq" class="input-main" style="margin:0; background:var(--bg);" placeholder="Поиск..." oninput="search()">
         </div>
-        <div id="contacts" style="flex:1; overflow-y:auto;"></div>
-        <div style="padding:15px; display:flex; gap:10px; background:var(--bg); border-top: 1px solid #101921; flex-shrink: 0;">
-            <button onclick="openCreate('group')" class="btn" style="flex:1; background:var(--panel); color:var(--accent);"><i class="fa-solid fa-users"></i> Группа</button>
-            <button onclick="openCreate('channel')" class="btn" style="flex:1; background:var(--panel); color:var(--accent);"><i class="fa-solid fa-bullhorn"></i> Канал</button>
+        <div id="contacts" style="flex:1; overflow-y:auto; padding-bottom: 90px;"></div>
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; padding:15px; display:flex; gap:10px; background:var(--panel); border-top: 1px solid #101921; z-index: 10;">
+            <button onclick="openCreate('group')" class="btn" style="flex:1; background:var(--bg); color:var(--accent); margin:0; padding:12px;"><i class="fa-solid fa-users"></i> Группа</button>
+            <button onclick="openCreate('channel')" class="btn" style="flex:1; background:var(--bg); color:var(--accent); margin:0; padding:12px;"><i class="fa-solid fa-bullhorn"></i> Канал</button>
         </div>
     </div>
 
@@ -126,7 +126,7 @@
         </div>
     </div>
 
-    <div id="admin-panel" style="position:absolute; bottom:0; width:100%; background:var(--panel); display:none; flex-direction:column; padding:20px; border-radius:24px 24px 0 0; z-index:1000; box-shadow: 0 -10px 40px rgba(0,0,0,0.6);">
+    <div id="admin-panel" style="position:absolute; bottom:0; left:0; right:0; background:var(--panel); display:none; flex-direction:column; padding:20px; border-radius:24px 24px 0 0; z-index:1000; box-shadow: 0 -10px 40px rgba(0,0,0,0.6);">
         <div style="width: 40px; height: 4px; background: #333; border-radius: 2px; align-self: center; margin-bottom: 20px;"></div>
         <div style="color:var(--accent); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('pin')"><i class="fa-solid fa-thumbtack" style="width:25px;"></i> Закрепить сообщение</div>
         <div style="color:var(--gold); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('mute')"><i class="fa-solid fa-microphone-lines-slash" style="width:25px;"></i> Замутить участника</div>
@@ -151,6 +151,10 @@
                 <div style="color:var(--gold); font-weight:bold;">$7.00</div>
             </div>
             <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Конфиденциальность</div>
+            <div class="setting-row" onclick="openSessions()">
+                <div><i class="fa-solid fa-desktop" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Сессии устройств</div>
+                <i class="fa-solid fa-chevron-right" style="color:#708499;"></i>
+            </div>
             <div class="setting-row" onclick="togglePrivacy()">
                 <div><i class="fa-solid fa-eye-slash" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Скрыть данные профиля</div>
                 <div id="tog-priv" class="switch"></div>
@@ -168,6 +172,14 @@
                 <b style="font-size: 16px;">Выйти из аккаунта</b>
             </div>
         </div>
+    </div>
+
+    <div id="modal-sessions" class="screen" style="z-index: 2000;">
+        <div class="nav-bar">
+            <i class="fa-solid fa-arrow-left icon-btn" onclick="document.getElementById('modal-sessions').style.display='none'"></i>
+            <b style="margin-left: 15px; font-size:18px;">Сессии устройств</b>
+        </div>
+        <div id="sessions-list" style="flex:1; overflow-y:auto; padding: 15px; background:var(--bg);"></div>
     </div>
 
     <div id="modal-profile" class="screen" style="z-index: 1000; background: rgba(0,0,0,0.85); justify-content: center; padding: 20px; backdrop-filter: blur(5px);">
@@ -195,6 +207,22 @@
 </div>
 
 <script>
+    let myDeviceId = localStorage.getItem('midlegram_device');
+    if(!myDeviceId) { 
+        myDeviceId = Math.random().toString(36).substring(2); 
+        localStorage.setItem('midlegram_device', myDeviceId); 
+    }
+
+    function getDeviceName() {
+        const ua = navigator.userAgent;
+        if (/android/i.test(ua)) return "Android";
+        if (/iphone|ipad|ipod/i.test(ua)) return "iOS";
+        if (/windows/i.test(ua)) return "Windows";
+        if (/mac/i.test(ua)) return "Mac";
+        if (/linux/i.test(ua)) return "Linux";
+        return "Web Browser";
+    }
+
     const socket = io();
     let me = null;
     
@@ -256,7 +284,7 @@
         if(!me) { document.getElementById('scr-auth').classList.add('active'); return; }
         document.getElementById('scr-auth').classList.remove('active');
         document.getElementById('scr-main').classList.add('active');
-        socket.emit('identify', me.username);
+        socket.emit('identify', { username: me.username, deviceId: myDeviceId, deviceName: getDeviceName() });
         checkNet(); setInterval(checkNet, 5000);
         renderSettings(); search('');
     }
@@ -309,7 +337,7 @@
         }
 
         showScreen('scr-chat');
-        socket.emit('identify', me.username); 
+        socket.emit('identify', { username: me.username, deviceId: myDeviceId, deviceName: getDeviceName() }); 
     }
 
     document.getElementById('mi').addEventListener('input', () => { if (curChat) socket.emit('typing', { from: me.username, to: curChat.user }); });
@@ -384,6 +412,10 @@
                 document.getElementById('pin-area').style.display = 'flex';
             }
         }
+    });
+
+    socket.on('force_logout', () => {
+        logout();
     });
 
     function addMsg(data) {
@@ -514,6 +546,30 @@
         document.getElementById('p-av').style.background = u.avatarColor;
         document.getElementById('p-bio').innerText = u.settings.hideData ? "Информация скрыта настройками приватности" : u.bio;
         document.getElementById('modal-profile').style.display = 'flex';
+    }
+
+    async function openSessions() {
+        document.getElementById('modal-sessions').style.display = 'flex';
+        document.getElementById('sessions-list').innerHTML = '<div style="text-align:center; padding:20px; color:#708499;">Загрузка...</div>';
+        const res = await fetch('/api/sessions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username }) });
+        const sessions = await res.json();
+        let html = '';
+        sessions.forEach(s => {
+            const isMe = s.deviceId === myDeviceId;
+            html += `<div style="background:var(--panel); padding:15px; border-radius:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <b style="display:block; font-size:15px;">${s.deviceName} ${isMe ? '<span style="color:var(--accent); font-size:12px;">(Это устройство)</span>' : ''}</b>
+                    <span style="color:#708499; font-size:12px;">Активность: ${s.time}</span>
+                </div>
+                ${!isMe ? `<div class="avatar" style="width:35px; height:35px; background:var(--bg); color:var(--danger); font-size:14px; cursor:pointer;" onclick="terminateSession('${s.deviceId}')"><i class="fa-solid fa-trash"></i></div>` : ''}
+            </div>`;
+        });
+        document.getElementById('sessions-list').innerHTML = html;
+    }
+
+    async function terminateSession(id) {
+        const res = await fetch('/api/sessions/terminate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username, deviceId: id }) });
+        if(res.ok) openSessions();
     }
 
     function logout() { localStorage.removeItem('midlegram_app'); location.reload(); }
