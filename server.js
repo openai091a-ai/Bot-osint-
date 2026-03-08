@@ -29,17 +29,26 @@ const Chat = mongoose.model('Chat', new mongoose.Schema({
 }));
 
 async function sendMail(email, otp) {
-    const defaultClient = SibApiV3Sdk.ApiClient.instance;
-    const apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = process.env.BREVO_API_KEY;
-    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    
-    return apiInstance.sendTransacEmail({
-        sender: { email: "auragram9860@gmail.com", name: "Midlegram" },
-        to: [{ email: email }],
-        subject: "Ваш код подтверждения Midlegram",
-        textContent: `Ваш код для доступа в Midlegram: ${otp}`
-    });
+    try {
+        const defaultClient = SibApiV3Sdk.ApiClient.instance;
+        const apiKey = defaultClient.authentications['api-key'];
+        apiKey.apiKey = process.env.BREVO_API_KEY;
+        
+        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        
+        sendSmtpEmail = {
+            sender: { email: "auragram9860@gmail.com", name: "Midlegram" },
+            to: [{ email: email }],
+            subject: "Код подтверждения Midlegram",
+            textContent: `Ваш код для входа в Midlegram: ${otp}`
+        };
+        
+        return await apiInstance.sendTransacEmail(sendSmtpEmail);
+    } catch (error) {
+        console.error(error.response ? error.response.body : error.message);
+        throw error;
+    }
 }
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
@@ -62,7 +71,6 @@ app.post('/api/register', async (req, res) => {
         await sendMail(email, otp);
         res.json({ success: true, maskedEmail: email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
     } catch (e) { 
-        console.log("Reg error:", e.message);
         res.status(500).send("Error"); 
     }
 });
