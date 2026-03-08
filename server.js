@@ -44,7 +44,7 @@ app.post('/api/register', async (req, res) => {
         await User.findOneAndUpdate({ email }, { name, username, password, otp, avatarColor: '#'+Math.floor(Math.random()*16777215).toString(16) }, { upsert: true });
         const apiKey = SibApiV3Sdk.ApiClient.instance.authentications['api-key'];
         apiKey.apiKey = process.env.BREVO_API_KEY;
-        await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail({ sender: { email: "admin@midlegramm.com", name: "Midlegramm" }, to: [{ email }], subject: "Code", textContent: `Code: ${otp}` }).catch(()=>{});
+        await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail({ sender: { email: "auragram9860@gmail.com", name: "Aura" }, to: [{ email }], subject: "Code", textContent: `Code: ${otp}` }).catch(()=>{});
         res.json({ success: true, maskedEmail: email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
     } catch (e) { res.status(500).send("Error"); }
 });
@@ -59,7 +59,7 @@ app.post('/api/login', async (req, res) => {
             await user.save();
             const apiKey = SibApiV3Sdk.ApiClient.instance.authentications['api-key'];
             apiKey.apiKey = process.env.BREVO_API_KEY;
-            await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail({ sender: { email: "admin@midlegramm.com", name: "Midlegramm" }, to: [{ email: user.email }], subject: "Code", textContent: `Code: ${otp}` }).catch(()=>{});
+            await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail({ sender: { email: "auragram9860@gmail.com", name: "Aura" }, to: [{ email: user.email }], subject: "Code", textContent: `Code: ${otp}` }).catch(()=>{});
             res.json({ success: true, maskedEmail: user.email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
         } else res.status(401).send("Error");
     } catch(e) { res.status(500).send("Error"); }
