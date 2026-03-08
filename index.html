@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Midlegramm Ultra</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg: #0f1721; --panel: #1c2733; --accent: #3390ec; --text: #fff; --msg-in: #182533; --msg-out: #2b5278; --danger: #ff3b30; --gold: #f59e0b; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        input { user-select: text !important; -webkit-user-select: text !important; }
+        body { margin: 0; min-height: 100vh; background: #000; color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        #app-container { width: 100%; max-width: 480px; height: 100vh; position: relative; background: var(--bg); overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .screen { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--bg); }
+        .active { display: flex; }
+        .nav-bar { height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); background: var(--panel); display: flex; align-items: center; padding-inline: 15px; border-bottom: 1px solid #101921; flex-shrink: 0; }
+        .input-main { width: 100%; background: var(--panel); border: none; color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; outline: none; font-size: 15px; }
+        .btn { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); opacity: 0.9; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; color: white; font-size: 18px; }
+        .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: cover; background-position: center; }
+        .bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 15px; position: relative; word-wrap: break-word; line-height: 1.4; }
+        .bubble.in { align-self: flex-start; background: var(--msg-in); border-bottom-left-radius: 4px; }
+        .bubble.out { align-self: flex-end; background: var(--msg-out); border-bottom-right-radius: 4px; }
+        .bubble img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+        .video-note { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); margin-top: 5px; display: block; }
+        .input-box { background: var(--panel); padding: 10px; display: flex; align-items: center; gap: 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); flex-shrink: 0; }
+        .input-box input { flex: 1; background: var(--bg); border: none; color: #fff; padding: 12px 15px; border-radius: 20px; outline: none; font-size: 15px; }
+        .setting-row { padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #101921; background: var(--panel); cursor: pointer; }
+        .switch { width: 44px; height: 24px; background: #333; border-radius: 12px; position: relative; transition: 0.3s; }
+        .switch.on { background: var(--accent); }
+        .switch::after { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: 0.3s; }
+        .switch.on::after { left: 22px; }
+        .row { display: flex; padding: 15px; align-items: center; gap: 15px; border-bottom: 1px solid #101921; cursor: pointer; transition: background 0.2s; }
+        .row:hover { background: #151f2b; }
+        .icon-btn { font-size: 22px; color: #708499; padding: 5px; cursor: pointer; transition: 0.2s; }
+        .icon-btn:hover { color: var(--accent); }
+        .pin-bar { background: var(--panel); padding: 10px 15px; border-bottom: 1px solid #101921; font-size: 13px; display: flex; align-items: center; gap: 10px; border-left: 3px solid var(--accent); cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="scr-auth" class="screen active" style="padding: 20px; justify-content: center; overflow-y: auto;">
+        <h1 style="text-align: center; margin-bottom: 40px; font-size: 40px;"><i class="fa-solid fa-paper-plane" style="color:var(--accent)"></i></h1>
+        <div id="form-reg">
+            <input type="text" id="reg-name" class="input-main" placeholder="Имя">
+            <input type="email" id="reg-email" class="input-main" placeholder="Email">
+            <input type="text" id="reg-user" class="input-main" placeholder="@username">
+            <input type="password" id="reg-pass" class="input-main" placeholder="Пароль">
+            <input type="password" id="reg-pass2" class="input-main" placeholder="Повторите пароль">
+            <button onclick="auth.register()" class="btn" style="margin-top: 10px;">Создать аккаунт</button>
+            <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Уже есть аккаунт? Войти</p>
+        </div>
+        <div id="form-login" style="display:none;">
+            <input type="text" id="log-id" class="input-main" placeholder="Email или @username">
+            <input type="password" id="log-pass" class="input-main" placeholder="Пароль">
+            <button onclick="auth.login()" class="btn" style="margin-top: 10px;">Войти</button>
+            <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Создать аккаунт</p>
+        </div>
+    </div>
+
+    <div id="modal-otp" class="screen" style="z-index: 2000; background: rgba(0,0,0,0.85); justify-content: center; padding: 20px; backdrop-filter: blur(5px);">
+        <div style="background: var(--panel); padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <h3 style="margin-top: 0;">Подтверждение</h3>
+            <p id="otp-desc" style="font-size: 14px; color: #708499; margin-bottom: 25px;"></p>
+            <input type="number" id="otp-input" class="input-main" placeholder="00000" style="text-align:center; font-size: 28px; letter-spacing: 8px; font-weight: bold; background: var(--bg);">
+            <button onclick="auth.verify()" class="btn" style="margin-top: 10px;">Подтвердить</button>
+        </div>
+    </div>
+
+    <div id="scr-main" class="screen">
+        <div class="nav-bar">
+            <i class="fa-solid fa-bars icon-btn" onclick="showScreen('scr-settings')"></i>
+            <div style="flex:1; text-align:center;"><b id="status" style="display:block; font-size:17px; font-weight: 600;">Midlegramm</b></div>
+            <i class="fa-solid fa-magnifying-glass icon-btn" onclick="toggleSearch()"></i>
+        </div>
+        <div id="search-box" style="display:none; padding:10px; background:var(--panel);">
+            <input type="text" id="sq" class="input-main" style="margin:0; background:var(--bg);" placeholder="Поиск..." oninput="search()">
+        </div>
+        <div id="contacts" style="flex:1; overflow-y:auto;"></div>
+        <div style="padding:15px; display:flex; gap:10px; background:var(--bg); border-top: 1px solid #101921;">
+            <button onclick="openCreate('group')" class="btn" style="flex:1; background:var(--panel); color:var(--accent);"><i class="fa-solid fa-users"></i> Группа</button>
+            <button onclick="openCreate('channel')" class="btn" style="flex:1; background:var(--panel); color:var(--accent);"><i class="fa-solid fa-bullhorn"></i> Канал</button>
+        </div>
+    </div>
+
+    <div id="scr-create" class="screen" style="padding:20px;">
+        <div class="nav-bar" style="background:transparent; padding:0 0 20px 0; border:none;">
+            <i class="fa-solid fa-arrow-left icon-btn" onclick="showScreen('scr-main')"></i>
+            <b id="create-title" style="margin-left:15px; font-size: 18px;">Создание</b>
+        </div>
+        <input type="text" id="c-name" class="input-main" placeholder="Название">
+        <input type="text" id="c-user" class="input-main" placeholder="@username_чата">
+        <button onclick="confirmCreate()" class="btn" style="margin-top: 10px;">Создать</button>
+    </div>
+
+    <div id="scr-chat" class="screen">
+        <div class="nav-bar">
+            <i class="fa-solid fa-arrow-left icon-btn" onclick="showScreen('scr-main')"></i>
+            <div id="chat-icon" class="avatar" style="width:38px; height:38px; margin: 0 12px; cursor:pointer;" onclick="viewProfile()"></div>
+            <div style="flex:1; cursor:pointer;" onclick="viewProfile()">
+                <b id="chat-target-name" style="display:block; font-size:16px;">User</b>
+                <span id="chat-status-sub" style="font-size:12px; color:var(--accent);">online</span>
+            </div>
+            <i class="fa-solid fa-ellipsis-v icon-btn" id="admin-tools" style="display:none;" onclick="toggleAdminPanel()"></i>
+        </div>
+        <div id="pin-area" class="pin-bar" style="display:none;" onclick="alert(curChat.pinned.text)">
+            <i class="fa-solid fa-thumbtack" style="color:var(--accent)"></i>
+            <div style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
+                <b style="color:var(--accent); display:block; font-size:12px;">Закрепленное сообщение</b>
+                <span id="pin-text" style="color:#708499;">...</span>
+            </div>
+        </div>
+        <div class="chat-area" id="msgs"></div>
+        <div class="input-box" id="chat-input-area">
+            <label for="f-up"><i class="fa-solid fa-paperclip icon-btn"></i></label>
+            <input type="file" id="f-up" hidden onchange="sendFile(event)">
+            <input type="text" id="mi" placeholder="Сообщение...">
+            <i class="fa-solid fa-video icon-btn" id="btn-vid" onclick="toggleVideoRecord()"></i>
+            <i class="fa-solid fa-paper-plane icon-btn" style="color:var(--accent);" onclick="send()"></i>
+        </div>
+    </div>
+
+    <div id="admin-panel" style="position:absolute; bottom:0; width:100%; background:var(--panel); display:none; flex-direction:column; padding:20px; border-radius:24px 24px 0 0; z-index:1000; box-shadow: 0 -10px 40px rgba(0,0,0,0.6);">
+        <div style="width: 40px; height: 4px; background: #333; border-radius: 2px; align-self: center; margin-bottom: 20px;"></div>
+        <div style="color:var(--accent); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('pin')"><i class="fa-solid fa-thumbtack" style="width:25px;"></i> Закрепить сообщение</div>
+        <div style="color:var(--gold); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('mute')"><i class="fa-solid fa-microphone-lines-slash" style="width:25px;"></i> Замутить участника</div>
+        <div style="color:var(--danger); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('kick')"><i class="fa-solid fa-user-minus" style="width:25px;"></i> Выгнать участника</div>
+        <button onclick="toggleAdminPanel()" class="btn" style="margin-top:15px; background:#2a394a;">Закрыть</button>
+    </div>
+
+    <div id="scr-settings" class="screen">
+        <div class="nav-bar">
+            <i class="fa-solid fa-arrow-left icon-btn" onclick="showScreen('scr-main')"></i>
+            <b style="margin-left: 15px; font-size:18px;">Настройки</b>
+        </div>
+        <div style="flex:1; overflow-y:auto; background:var(--bg);">
+            <div style="padding: 30px; text-align: center; background: var(--panel); border-bottom: 1px solid #101921;">
+                <div id="my-av" class="avatar" style="width: 90px; height: 90px; font-size: 35px; margin: 0 auto 15px;"></div>
+                <h2 id="my-name" style="margin: 0 0 5px 0;">Name</h2>
+                <div style="color:#708499; margin-bottom: 10px;" id="my-username"></div>
+                <div id="my-gold-badge"></div>
+            </div>
+            
+            <div class="setting-row" onclick="buyGold()" style="margin-top:20px;">
+                <div><i class="fa-solid fa-star" style="color:var(--gold); margin-right:15px; width:20px; text-align:center;"></i> <b style="color:var(--text);">Midlegramm Gold</b></div>
+                <div style="color:var(--gold); font-weight:bold;">$7.00</div>
+            </div>
+
+            <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Конфиденциальность</div>
+            <div class="setting-row" onclick="togglePrivacy()">
+                <div><i class="fa-solid fa-eye-slash" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Скрыть данные профиля</div>
+                <div id="tog-priv" class="switch"></div>
+            </div>
+
+            <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Уведомления</div>
+            <div class="setting-row" onclick="toggleNotif()">
+                <div><i class="fa-solid fa-bell" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Звук сообщений</div>
+                <div id="tog-notif" class="switch"></div>
+            </div>
+            <div class="setting-row" onclick="changeRingtone()">
+                <div><i class="fa-solid fa-music" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Рингтон звонка</div>
+                <div id="ringtone-val" style="color:var(--accent); font-weight:500;"></div>
+            </div>
+            
+            <div class="setting-row" style="margin-top: 30px; justify-content: center; color: var(--danger);" onclick="logout()">
+                <b style="font-size: 16px;">Выйти из аккаунта</b>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-profile" class="screen" style="z-index: 1000; background: rgba(0,0,0,0.85); justify-content: center; padding: 20px; backdrop-filter: blur(5px);">
+        <div style="background: var(--panel); padding: 30px; border-radius: 20px; text-align: center; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <i class="fa-solid fa-xmark icon-btn" style="position: absolute; top: 15px; right: 15px;" onclick="document.getElementById('modal-profile').style.display='none'"></i>
+            <div id="p-av" class="avatar" style="width: 90px; height: 90px; font-size: 35px; margin: 0 auto 15px;"></div>
+            <h2 id="p-name" style="margin: 0 0 5px 0;">Name</h2>
+            <div id="p-username" style="color: var(--accent); margin-bottom: 20px; font-weight:500;"></div>
+            <div style="background: var(--bg); padding: 15px; border-radius: 12px; text-align: left;">
+                <div style="font-size: 13px; color: var(--accent); margin-bottom: 8px; font-weight:bold; text-transform:uppercase;">О себе</div>
+                <div id="p-bio" style="line-height:1.4;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const socket = io();
+    let me = JSON.parse(localStorage.getItem('m_u_rend'));
+    let curChat = null;
+    let createType = 'group';
+    let typingTimeout;
+    let mediaRecorder;
+    let videoChunks = [];
+    let lastMsgData = null;
+    const sounds = { msg: new Audio('https://www.soundjay.com/buttons/beep-01a.mp3') };
+
+    const auth = {
+        loginId: '',
+        toggle() {
+            const r = document.getElementById('form-reg');
+            const l = document.getElementById('form-login');
+            r.style.display = r.style.display === 'none' ? 'block' : 'none';
+            l.style.display = l.style.display === 'none' ? 'block' : 'none';
+        },
+        async register() {
+            const data = {
+                name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value,
+                username: document.getElementById('reg-user').value, password: document.getElementById('reg-pass').value
+            };
+            if(data.password !== document.getElementById('reg-pass2').value) return;
+            const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            if(res.ok) { const result = await res.json(); this.showOTP(result.maskedEmail, data.email); }
+        },
+        async login() {
+            const login = document.getElementById('log-id').value;
+            const password = document.getElementById('log-pass').value;
+            const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login, password }) });
+            if(res.ok) { const result = await res.json(); this.showOTP(result.maskedEmail, login); }
+        },
+        showOTP(masked, login) {
+            this.loginId = login;
+            document.getElementById('otp-desc').innerText = `Код отправлен на ${masked}`;
+            document.getElementById('modal-otp').classList.add('active');
+        },
+        async verify() {
+            const otp = document.getElementById('otp-input').value;
+            const res = await fetch('/api/verify', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login: this.loginId, otp }) });
+            if(res.ok) { const data = await res.json(); localStorage.setItem('m_u_rend', JSON.stringify(data.user)); location.reload(); }
+        }
+    };
+
+    async function init() {
+        if(!me) { document.getElementById('scr-auth').classList.add('active'); return; }
+        document.getElementById('scr-auth').classList.remove('active');
+        document.getElementById('scr-main').classList.add('active');
+        socket.emit('identify', me.username);
+        checkNet(); setInterval(checkNet, 5000);
+        renderSettings(); search('');
+    }
+
+    function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); if(id === 'scr-settings') renderSettings(); }
+    
+    async function checkNet() {
+        const t = document.getElementById('status');
+        if(!navigator.onLine) { t.innerText = "Ожидание сети..."; return; }
+        try { await fetch('/api/ping'); t.innerText = "Midlegramm"; } catch(e) { t.innerText = "Обновление..."; }
+    }
+
+    function toggleSearch() { const s = document.getElementById('search-box'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; }
+
+    async function search(forceQuery) {
+        const q = forceQuery !== undefined ? forceQuery : document.getElementById('sq').value;
+        const res = await fetch(`/api/search?q=${q}`);
+        const { users, chats } = await res.json();
+        let html = '';
+        users.filter(u => u.username !== me.username).forEach(u => html += `<div class="row" onclick="openChat('${u.username}', '${u.name}', '${u.avatarColor}', false)"><div class="avatar" style="background:${u.avatarColor}">${u.name[0]}</div><div style="flex:1;"><b>${u.name}</b><br><small style="color:#708499">${u.username}</small></div></div>`);
+        chats.forEach(c => html += `<div class="row" onclick="openChat('${c.username}', '${c.title}', '#3390ec', true, ${c.admins.includes(me.username)}, '${c.type}', ${JSON.stringify(c.pinnedMessage || null)})"><div class="avatar" style="background:#3390ec"><i class="fa-solid ${c.type==='channel'?'fa-bullhorn':'fa-users'}"></i></div><div style="flex:1;"><b>${c.title}</b><br><small style="color:#708499">${c.username}</small></div></div>`);
+        document.getElementById('contacts').innerHTML = html;
+    }
+
+    function openCreate(type) { createType = type; document.getElementById('create-title').innerText = type === 'group' ? 'Новая группа' : 'Новый канал'; showScreen('scr-create'); }
+
+    async function confirmCreate() {
+        const title = document.getElementById('c-name').value;
+        const username = document.getElementById('c-user').value;
+        const res = await fetch('/api/chat/create', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title, username, type:createType, owner: me.username}) });
+        if(res.ok) { document.getElementById('c-name').value=''; document.getElementById('c-user').value=''; showScreen('scr-main'); search(''); }
+    }
+
+    function openChat(user, name, color, isGroup, isAdmin = false, chatType = 'group', pinnedObj = null) {
+        curChat = { user, name, isGroup, isAdmin, chatType, pinned: pinnedObj };
+        document.getElementById('chat-target-name').innerText = name;
+        document.getElementById('chat-icon').innerText = isGroup ? (chatType==='channel'?'📢':'👥') : name[0];
+        document.getElementById('chat-icon').style.background = color;
+        document.getElementById('msgs').innerHTML = '';
+        document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
+        document.getElementById('chat-input-area').style.display = (chatType === 'channel' && !isAdmin) ? 'none' : 'flex';
+        
+        const pinArea = document.getElementById('pin-area');
+        if(pinnedObj && pinnedObj.text) {
+            document.getElementById('pin-text').innerText = pinnedObj.text;
+            pinArea.style.display = 'flex';
+        } else {
+            pinArea.style.display = 'none';
+        }
+
+        showScreen('scr-chat');
+        socket.emit('identify', me.username); 
+    }
+
+    document.getElementById('mi').addEventListener('input', () => { if (curChat) socket.emit('typing', { from: me.username, to: curChat.user }); });
+
+    socket.on('is_typing', (data) => {
+        if (curChat && curChat.user === data.from) {
+            const sub = document.getElementById('chat-status-sub');
+            sub.innerText = "печатает..."; clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => { sub.innerText = "online"; }, 2000);
+        }
+    });
+
+    function send() {
+        const i = document.getElementById('mi');
+        if(!i.value || !curChat) return;
+        const msgObj = { from: me.username, to: curChat.user, text: i.value };
+        socket.emit('send_msg', msgObj);
+        addMsg({ text: i.value, type: 'out' });
+        lastMsgData = msgObj;
+        i.value = '';
+    }
+
+    async function sendFile(e) {
+        const file = e.target.files[0];
+        if (!file || !curChat) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const msgObj = { from: me.username, to: curChat.user, text: `Файл: ${file.name}`, fileData: reader.result };
+            socket.emit('send_msg', msgObj);
+            addMsg({ fileData: reader.result, type: 'out' });
+            lastMsgData = msgObj;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function toggleVideoRecord() {
+        if (!curChat) return;
+        const btn = document.getElementById('btn-vid');
+        if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); btn.style.color = '#708499'; return; }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            videoChunks = [];
+            mediaRecorder.ondataavailable = e => videoChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(videoChunks, { type: 'video/webm' });
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const msgObj = { from: me.username, to: curChat.user, videoData: reader.result };
+                    socket.emit('send_msg', msgObj);
+                    addMsg({ videoData: reader.result, type: 'out' });
+                };
+                reader.readAsDataURL(blob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+            mediaRecorder.start(); btn.style.color = 'var(--danger)';
+        } catch (err) {}
+    }
+
+    socket.on('new_msg', (data) => {
+        if(me.settings.notifications && data.from !== me.username) sounds.msg.play().catch(()=>{});
+        if(curChat && (curChat.user === data.from || curChat.user === data.to)) {
+            addMsg({ text: data.text, fileData: data.fileData, videoData: data.videoData, type: data.from === me.username ? 'out' : 'in', from: data.from });
+        }
+    });
+
+    socket.on('chat_update', (data) => {
+        if(curChat && curChat.user === data.username) {
+            if(data.pinnedMessage && data.pinnedMessage.text) {
+                curChat.pinned = data.pinnedMessage;
+                document.getElementById('pin-text').innerText = data.pinnedMessage.text;
+                document.getElementById('pin-area').style.display = 'flex';
+            }
+        }
+    });
+
+    function addMsg(data) {
+        const d = document.getElementById('msgs');
+        let content = '';
+        if(data.type === 'in' && curChat.isGroup) content += `<div style="font-size:11px; color:var(--accent); font-weight:bold; margin-bottom:4px;">${data.from}</div>`;
+        if(data.videoData) content += `<video src="${data.videoData}" class="video-note" autoplay loop playsinline></video>`;
+        if(data.fileData) content += `<img src="${data.fileData}">`;
+        if(data.text) content += `<div>${data.text}</div>`;
+        d.innerHTML += `<div class="bubble ${data.type}">${content}</div>`;
+        d.scrollTop = d.scrollHeight;
+    }
+
+    function toggleAdminPanel() { const p = document.getElementById('admin-panel'); p.style.display = p.style.display === 'none' ? 'flex' : 'none'; }
+    function adminAction(type) {
+        let user = null;
+        let msg = null;
+        if(type === 'pin') {
+            if(!lastMsgData || !lastMsgData.text) return;
+            msg = lastMsgData;
+        } else {
+            user = prompt("Введите @username участника:");
+            if(!user) return;
+        }
+        socket.emit('action', { type, user, message: msg, admin: me.username, chat: curChat.user });
+        toggleAdminPanel();
+    }
+
+    function renderSettings() {
+        document.getElementById('my-name').innerText = me.name;
+        document.getElementById('my-username').innerText = me.username;
+        document.getElementById('my-av').innerText = me.name[0];
+        document.getElementById('my-av').style.background = me.avatarColor;
+        document.getElementById('my-gold-badge').innerHTML = me.isGold ? '<span style="background:var(--gold); color:#000; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold;"><i class="fa-solid fa-star"></i> GOLD</span>' : '';
+        document.getElementById('tog-priv').className = `switch ${me.settings.hideData ? 'on' : ''}`;
+        document.getElementById('tog-notif').className = `switch ${me.settings.notifications ? 'on' : ''}`;
+        document.getElementById('ringtone-val').innerText = me.settings.ringtone.toUpperCase();
+    }
+
+    async function updateDB() {
+        const res = await fetch('/api/user/update', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username, settings: me.settings }) });
+        me = await res.json(); localStorage.setItem('m_u_rend', JSON.stringify(me)); renderSettings();
+    }
+
+    function togglePrivacy() { me.settings.hideData = !me.settings.hideData; updateDB(); }
+    function toggleNotif() { me.settings.notifications = !me.settings.notifications; updateDB(); }
+    function changeRingtone() { const tones = ['default', 'classic', 'modern', 'digital']; let idx = tones.indexOf(me.settings.ringtone); me.settings.ringtone = tones[(idx + 1) % tones.length]; updateDB(); }
+
+    async function buyGold() {
+        if(me.isGold) return;
+        const res = await fetch('/api/user/buy-gold', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username }) });
+        me = await res.json(); localStorage.setItem('m_u_rend', JSON.stringify(me)); renderSettings();
+    }
+
+    async function viewProfile() {
+        if(curChat.isGroup) return;
+        const res = await fetch(`/api/search?q=${curChat.user}`);
+        const { users } = await res.json();
+        const u = users[0];
+        document.getElementById('p-name').innerText = u.name;
+        document.getElementById('p-username').innerText = u.username;
+        document.getElementById('p-av').innerText = u.name[0];
+        document.getElementById('p-av').style.background = u.avatarColor;
+        document.getElementById('p-bio').innerText = u.settings.hideData ? "Информация скрыта настройками приватности" : u.bio;
+        document.getElementById('modal-profile').style.display = 'flex';
+    }
+
+    function logout() { localStorage.removeItem('m_u_rend'); location.reload(); }
+
+    init();
+</script>
+</body>
+</html>
