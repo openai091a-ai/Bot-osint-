@@ -16,9 +16,6 @@ app.use(cors());
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/api/ping', (req, res) => res.send('ok'));
-
 const User = mongoose.model('User', new mongoose.Schema({
     name: String, email: { type: String, unique: true }, username: { type: String, unique: true },
     password: { type: String }, otp: String, isVerified: { type: Boolean, default: false },
@@ -31,6 +28,23 @@ const Chat = mongoose.model('Chat', new mongoose.Schema({
     owner: String, admins: [String], members: [String], mutes: [String], pinnedMessage: Object
 }));
 
+async function sendMail(email, otp) {
+    const defaultClient = SibApiV3Sdk.ApiClient.instance;
+    const apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = process.env.BREVO_API_KEY;
+    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    
+    return apiInstance.sendTransacEmail({
+        sender: { email: "auragram9860@gmail.com", name: "Midlegram" },
+        to: [{ email: email }],
+        subject: "Ваш код подтверждения Midlegram",
+        textContent: `Ваш код для доступа в Midlegram: ${otp}`
+    });
+}
+
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/api/ping', (req, res) => res.send('ok'));
+
 server.listen(PORT, '0.0.0.0', () => {
     if (MONGO_URI) {
         mongoose.connect(MONGO_URI).catch(()=>{});
@@ -41,12 +55,16 @@ app.post('/api/register', async (req, res) => {
     const { name, email, username, password } = req.body;
     const otp = Math.floor(10000 + Math.random() * 90000).toString();
     try {
-        await User.findOneAndUpdate({ email }, { name, username, password, otp, avatarColor: '#'+Math.floor(Math.random()*16777215).toString(16) }, { upsert: true });
-        const apiKey = SibApiV3Sdk.ApiClient.instance.authentications['api-key'];
-        apiKey.apiKey = process.env.BREVO_API_KEY;
-        await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail({ sender: { email: "auragram9860@gmail.com", name: "Aura" }, to: [{ email }], subject: "Code", textContent: `Code: ${otp}` }).catch(()=>{});
+        await User.findOneAndUpdate({ email }, 
+            { name, username, password, otp, isVerified: false, avatarColor: '#'+Math.floor(Math.random()*16777215).toString(16) }, 
+            { upsert: true }
+        );
+        await sendMail(email, otp);
         res.json({ success: true, maskedEmail: email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
-    } catch (e) { res.status(500).send("Error"); }
+    } catch (e) { 
+        console.log("Reg error:", e.message);
+        res.status(500).send("Error"); 
+    }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -57,9 +75,7 @@ app.post('/api/login', async (req, res) => {
             const otp = Math.floor(10000 + Math.random() * 90000).toString();
             user.otp = otp;
             await user.save();
-            const apiKey = SibApiV3Sdk.ApiClient.instance.authentications['api-key'];
-            apiKey.apiKey = process.env.BREVO_API_KEY;
-            await new SibApiV3Sdk.TransactionalEmailsApi().sendTransacEmail({ sender: { email: "auragram9860@gmail.com", name: "Aura" }, to: [{ email: user.email }], subject: "Code", textContent: `Code: ${otp}` }).catch(()=>{});
+            await sendMail(user.email, otp);
             res.json({ success: true, maskedEmail: user.email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
         } else res.status(401).send("Error");
     } catch(e) { res.status(500).send("Error"); }
