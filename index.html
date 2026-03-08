@@ -11,7 +11,7 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
         input { user-select: text !important; -webkit-user-select: text !important; }
         body { margin: 0; min-height: 100vh; background: #000; color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        #app-container { width: 100%; max-width: 480px; height: 100vh; position: relative; background: var(--bg); overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        #app-container { width: 100%; max-width: 480px; height: 100vh; position: relative; background: var(--bg); overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.8); display: flex; flex-direction: column; }
         .screen { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--bg); }
         .active { display: flex; }
         .nav-bar { height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); background: var(--panel); display: flex; align-items: center; padding-inline: 15px; border-bottom: 1px solid #101921; flex-shrink: 0; }
@@ -36,7 +36,7 @@
         .row:hover { background: #151f2b; }
         .icon-btn { font-size: 22px; color: #708499; padding: 5px; cursor: pointer; transition: 0.2s; }
         .icon-btn:hover { color: var(--accent); }
-        .pin-bar { background: var(--panel); padding: 10px 15px; border-bottom: 1px solid #101921; font-size: 13px; display: flex; align-items: center; gap: 10px; border-left: 3px solid var(--accent); cursor: pointer; }
+        .pin-bar { background: var(--panel); padding: 10px 15px; border-bottom: 1px solid #101921; font-size: 13px; display: flex; align-items: center; gap: 10px; border-left: 3px solid var(--accent); cursor: pointer; flex-shrink: 0; }
         .pulse { animation: pulse-animation 2s infinite; }
         @keyframes pulse-animation { 0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(52, 199, 89, 0); } 100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); } }
     </style>
@@ -78,11 +78,11 @@
             <div style="flex:1; text-align:center;"><b id="status" style="display:block; font-size:17px; font-weight: 600;">Midlegram</b></div>
             <i class="fa-solid fa-magnifying-glass icon-btn" onclick="toggleSearch()"></i>
         </div>
-        <div id="search-box" style="display:none; padding:10px; background:var(--panel);">
+        <div id="search-box" style="display:none; padding:10px; background:var(--panel); flex-shrink: 0;">
             <input type="text" id="sq" class="input-main" style="margin:0; background:var(--bg);" placeholder="Поиск..." oninput="search()">
         </div>
         <div id="contacts" style="flex:1; overflow-y:auto;"></div>
-        <div style="padding:15px; display:flex; gap:10px; background:var(--bg); border-top: 1px solid #101921;">
+        <div style="padding:15px; display:flex; gap:10px; background:var(--bg); border-top: 1px solid #101921; flex-shrink: 0;">
             <button onclick="openCreate('group')" class="btn" style="flex:1; background:var(--panel); color:var(--accent);"><i class="fa-solid fa-users"></i> Группа</button>
             <button onclick="openCreate('channel')" class="btn" style="flex:1; background:var(--panel); color:var(--accent);"><i class="fa-solid fa-bullhorn"></i> Канал</button>
         </div>
@@ -196,7 +196,15 @@
 
 <script>
     const socket = io();
-    let me = JSON.parse(localStorage.getItem('midlegram_app'));
+    let me = null;
+    
+    try {
+        const saved = localStorage.getItem('midlegram_app');
+        if (saved) me = JSON.parse(saved);
+    } catch (e) {
+        localStorage.removeItem('midlegram_app');
+    }
+
     let curChat = null;
     let createType = 'group';
     let typingTimeout;
