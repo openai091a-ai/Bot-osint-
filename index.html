@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Aura Messenger</title>
+    <title>Midlegram</title>
     <script src="/socket.io/socket.io.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -75,7 +75,7 @@
     <div id="scr-main" class="screen">
         <div class="nav-bar">
             <i class="fa-solid fa-bars icon-btn" onclick="showScreen('scr-settings')"></i>
-            <div style="flex:1; text-align:center;"><b id="status" style="display:block; font-size:17px; font-weight: 600;">Aura</b></div>
+            <div style="flex:1; text-align:center;"><b id="status" style="display:block; font-size:17px; font-weight: 600;">Midlegram</b></div>
             <i class="fa-solid fa-magnifying-glass icon-btn" onclick="toggleSearch()"></i>
         </div>
         <div id="search-box" style="display:none; padding:10px; background:var(--panel);">
@@ -147,7 +147,7 @@
                 <div id="my-gold-badge"></div>
             </div>
             <div class="setting-row" onclick="buyGold()" style="margin-top:20px;">
-                <div><i class="fa-solid fa-star" style="color:var(--gold); margin-right:15px; width:20px; text-align:center;"></i> <b style="color:var(--text);">Aura Gold</b></div>
+                <div><i class="fa-solid fa-star" style="color:var(--gold); margin-right:15px; width:20px; text-align:center;"></i> <b style="color:var(--text);">Midlegram Gold</b></div>
                 <div style="color:var(--gold); font-weight:bold;">$7.00</div>
             </div>
             <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Конфиденциальность</div>
@@ -196,7 +196,7 @@
 
 <script>
     const socket = io();
-    let me = JSON.parse(localStorage.getItem('m_u_rend'));
+    let me = JSON.parse(localStorage.getItem('midlegram_app'));
     let curChat = null;
     let createType = 'group';
     let typingTimeout;
@@ -240,7 +240,7 @@
         async verify() {
             const otp = document.getElementById('otp-input').value;
             const res = await fetch('/api/verify', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login: this.loginId, otp }) });
-            if(res.ok) { const data = await res.json(); localStorage.setItem('m_u_rend', JSON.stringify(data.user)); location.reload(); }
+            if(res.ok) { const data = await res.json(); localStorage.setItem('midlegram_app', JSON.stringify(data.user)); location.reload(); }
         }
     };
 
@@ -258,7 +258,7 @@
     async function checkNet() {
         const t = document.getElementById('status');
         if(!navigator.onLine) { t.innerText = "Ожидание сети..."; return; }
-        try { await fetch('/api/ping'); t.innerText = "Aura"; } catch(e) { t.innerText = "Обновление..."; }
+        try { await fetch('/api/ping'); t.innerText = "Midlegram"; } catch(e) { t.innerText = "Обновление..."; }
     }
 
     function toggleSearch() { const s = document.getElementById('search-box'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; }
@@ -482,7 +482,7 @@
 
     async function updateDB() {
         const res = await fetch('/api/user/update', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username, settings: me.settings }) });
-        me = await res.json(); localStorage.setItem('m_u_rend', JSON.stringify(me)); renderSettings();
+        me = await res.json(); localStorage.setItem('midlegram_app', JSON.stringify(me)); renderSettings();
     }
 
     function togglePrivacy() { me.settings.hideData = !me.settings.hideData; updateDB(); }
@@ -492,7 +492,7 @@
     async function buyGold() {
         if(me.isGold) return;
         const res = await fetch('/api/user/buy-gold', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username }) });
-        me = await res.json(); localStorage.setItem('m_u_rend', JSON.stringify(me)); renderSettings();
+        me = await res.json(); localStorage.setItem('midlegram_app', JSON.stringify(me)); renderSettings();
     }
 
     async function viewProfile() {
@@ -508,7 +508,7 @@
         document.getElementById('modal-profile').style.display = 'flex';
     }
 
-    function logout() { localStorage.removeItem('m_u_rend'); location.reload(); }
+    function logout() { localStorage.removeItem('midlegram_app'); location.reload(); }
 
     init();
 </script>
