@@ -40,6 +40,20 @@ async function sendMail(email, otp) {
         }
     });
     
+    async function sendMail(email, otp) {
+    let transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // Используем SSL
+        auth: {
+            user: GMAIL_USER,
+            pass: GMAIL_PASS
+        },
+        connectionTimeout: 10000, // Ждем 10 секунд
+        greetingTimeout: 10000,
+        socketTimeout: 10000
+    });
+    
     return await transporter.sendMail({
         from: `"Midlegram" <${GMAIL_USER}>`,
         to: email,
