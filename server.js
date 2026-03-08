@@ -33,23 +33,14 @@ const Chat = mongoose.model('Chat', new mongoose.Schema({
 
 async function sendMail(email, otp) {
     let transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: GMAIL_USER,
-            pass: GMAIL_PASS
-        }
-    });
-    
-    async function sendMail(email, otp) {
-    let transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 465,
-        secure: true, // Используем SSL
+        secure: true,
         auth: {
             user: GMAIL_USER,
             pass: GMAIL_PASS
         },
-        connectionTimeout: 10000, // Ждем 10 секунд
+        connectionTimeout: 10000,
         greetingTimeout: 10000,
         socketTimeout: 10000
     });
@@ -172,7 +163,6 @@ io.on('connection', (socket) => {
             let u = typeof d === 'string' ? d : d.username;
             let deviceId = typeof d === 'object' ? d.deviceId : 'unknown';
             let deviceName = typeof d === 'object' ? d.deviceName : 'Unknown';
-
             const user = await User.findOne({ username: u });
             if(user) {
                 user.socketId = socket.id;
