@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +15,8 @@ app.use(cors());
 
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
+const GMAIL_USER = "auragram9860@gmail.com";
+const GMAIL_PASS = process.env.GMAIL_APP_PASS;
 
 const User = mongoose.model('User', new mongoose.Schema({
     name: String, email: { type: String, unique: true }, username: { type: String, unique: true },
@@ -30,25 +32,20 @@ const Chat = mongoose.model('Chat', new mongoose.Schema({
 }));
 
 async function sendMail(email, otp) {
-    try {
-        const defaultClient = SibApiV3Sdk.ApiClient.instance;
-        const apiKey = defaultClient.authentications['api-key'];
-        apiKey.apiKey = process.env.BREVO_API_KEY;
-        
-        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-        let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-        
-        sendSmtpEmail = {
-            sender: { email: "auragram9860@gmail.com", name: "Midlegram" },
-            to: [{ email: email }],
-            subject: "Midlegram",
-            textContent: `Code: ${otp}`
-        };
-        
-        return await apiInstance.sendTransacEmail(sendSmtpEmail);
-    } catch (error) {
-        throw error;
-    }
+    let transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: GMAIL_USER,
+            pass: GMAIL_PASS
+        }
+    });
+    
+    return await transporter.sendMail({
+        from: `"Midlegram" <${GMAIL_USER}>`,
+        to: email,
+        subject: "Код подтверждения Midlegram",
+        text: `Ваш код доступа: ${otp}`
+    });
 }
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
