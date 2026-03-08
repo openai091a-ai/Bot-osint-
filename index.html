@@ -48,7 +48,6 @@
         <h1 style="text-align: center; margin-bottom: 40px; font-size: 40px;"><i class="fa-solid fa-paper-plane" style="color:var(--accent)"></i></h1>
         <div id="form-reg">
             <input type="text" id="reg-name" class="input-main" placeholder="Имя">
-            <input type="email" id="reg-email" class="input-main" placeholder="Email">
             <input type="text" id="reg-user" class="input-main" placeholder="@username">
             <input type="password" id="reg-pass" class="input-main" placeholder="Пароль">
             <input type="password" id="reg-pass2" class="input-main" placeholder="Повторите пароль">
@@ -56,19 +55,10 @@
             <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Уже есть аккаунт? Войти</p>
         </div>
         <div id="form-login" style="display:none;">
-            <input type="text" id="log-id" class="input-main" placeholder="Email или @username">
+            <input type="text" id="log-id" class="input-main" placeholder="@username">
             <input type="password" id="log-pass" class="input-main" placeholder="Пароль">
             <button onclick="auth.login()" class="btn" style="margin-top: 10px;">Войти</button>
             <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Создать аккаунт</p>
-        </div>
-    </div>
-
-    <div id="modal-otp" class="screen" style="z-index: 2000; background: rgba(0,0,0,0.85); justify-content: center; padding: 20px; backdrop-filter: blur(5px);">
-        <div style="background: var(--panel); padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-            <h3 style="margin-top: 0;">Подтверждение</h3>
-            <p id="otp-desc" style="font-size: 14px; color: #708499; margin-bottom: 25px;"></p>
-            <input type="number" id="otp-input" class="input-main" placeholder="00000" style="text-align:center; font-size: 28px; letter-spacing: 8px; font-weight: bold; background: var(--bg);">
-            <button onclick="auth.verify()" class="btn" style="margin-top: 10px;">Подтвердить</button>
         </div>
     </div>
 
@@ -228,13 +218,9 @@
     
     try {
         const saved = localStorage.getItem('midlegram_app');
-        if (saved) {
-            me = JSON.parse(saved);
-            if (!me || !me.username) throw new Error("Invalid");
-        }
+        if (saved) me = JSON.parse(saved);
     } catch (e) {
         localStorage.removeItem('midlegram_app');
-        me = null;
     }
 
     let curChat = null;
@@ -250,7 +236,6 @@
     const iceServers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     const auth = {
-        loginId: '',
         toggle() {
             const r = document.getElementById('form-reg');
             const l = document.getElementById('form-login');
@@ -259,28 +244,29 @@
         },
         async register() {
             const data = {
-                name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value,
-                username: document.getElementById('reg-user').value, password: document.getElementById('reg-pass').value
+                name: document.getElementById('reg-name').value,
+                username: document.getElementById('reg-user').value,
+                password: document.getElementById('reg-pass').value
             };
-            if(data.password !== document.getElementById('reg-pass2').value) return;
+            if(!data.name || !data.username || !data.password) return alert("Заполните все поля");
+            if(data.password !== document.getElementById('reg-pass2').value) return alert("Пароли не совпадают");
             const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            if(res.ok) { const result = await res.json(); this.showOTP(result.maskedEmail, data.email); }
+            if(res.ok) { 
+                const result = await res.json();
+                localStorage.setItem('midlegram_app', JSON.stringify(result.user));
+                location.reload();
+            } else alert("Пользователь с таким именем уже существует");
         },
         async login() {
             const login = document.getElementById('log-id').value;
             const password = document.getElementById('log-pass').value;
+            if(!login || !password) return alert("Заполните все поля");
             const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login, password }) });
-            if(res.ok) { const result = await res.json(); this.showOTP(result.maskedEmail, login); }
-        },
-        showOTP(masked, login) {
-            this.loginId = login;
-            document.getElementById('otp-desc').innerText = `Код отправлен на ${masked}`;
-            document.getElementById('modal-otp').classList.add('active');
-        },
-        async verify() {
-            const otp = document.getElementById('otp-input').value;
-            const res = await fetch('/api/verify', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login: this.loginId, otp }) });
-            if(res.ok) { const data = await res.json(); localStorage.setItem('midlegram_app', JSON.stringify(data.user)); location.reload(); }
+            if(res.ok) { 
+                const result = await res.json();
+                localStorage.setItem('midlegram_app', JSON.stringify(result.user));
+                location.reload();
+            } else alert("Неверный логин или пароль");
         }
     };
 
