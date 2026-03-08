@@ -19,8 +19,9 @@ mongoose.connect(MONGO_URI).catch(() => {});
 
 const User = mongoose.model('User', new mongoose.Schema({
     name: String, username: { type: String, unique: true },
-    password: { type: String }, socketId: String, avatarColor: String, avatarUrl: String, isGold: { type: Boolean, default: true },
+    password: { type: String }, avatarColor: String, avatarUrl: String, isGold: { type: Boolean, default: true },
     sessions: { type: Array, default: [] },
+    lastSeen: { type: Date, default: Date.now },
     settings: { hideData: { type: Boolean, default: false }, notifications: { type: Boolean, default: true }, ringtone: { type: String, default: 'default' } }
 }));
 
@@ -86,7 +87,8 @@ app.post('/api/messages', async (req, res) => {
 app.post('/api/user/status', async (req, res) => {
     try {
         const user = await User.findOne({ username: req.body.username });
-        res.json({ online: user && user.sessions.length > 0 });
+        if(!user) return res.json({ online: false });
+        res.json({ online: user.sessions.length > 0, lastSeen: user.lastSeen });
     } catch(e) { res.json({ online: false }); }
 });
 
@@ -132,6 +134,7 @@ app.post('/api/sessions/terminate', async (req, res) => {
             const target = user.sessions.find(s => s.deviceId === req.body.deviceId);
             if (target && target.socketId) io.to(target.socketId).emit('force_logout');
             user.sessions = user.sessions.filter(s => s.deviceId !== req.body.deviceId);
+            if (user.sessions.length === 0) user.lastSeen = new Date();
             await user.save();
             res.json({ success: true });
         }
@@ -183,9 +186,8 @@ io.on('connection', (socket) => {
         try {
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const chatId = d.to.startsWith('@') ? d.to : [d.from, d.to].sort().join('_');
-            const newMsg = new Message({ chatId, from: d.from, to: d.to, text: d.text, fileData: d.fileData, videoData: d.videoData, time });
-            await newMsg.save();
             const msgObj = { from: d.from, to: d.to, text: d.text, fileData: d.fileData, videoData: d.videoData, time };
+            
             if (d.to.startsWith('@')) {
                 const c = await Chat.findOne({ username: d.to });
                 if (c && !c.mutes.includes(d.from)) io.to(d.to).emit('new_msg', msgObj);
@@ -193,6 +195,9 @@ io.on('connection', (socket) => {
                 io.to(d.to).emit('new_msg', msgObj);
                 if(d.from !== d.to) io.to(d.from).emit('new_msg', msgObj);
             }
+            
+            const newMsg = new Message({ chatId, ...msgObj });
+            await newMsg.save();
         } catch(e){}
     });
 
@@ -209,18 +214,10 @@ io.on('connection', (socket) => {
         } catch(e){}
     });
 
-    socket.on('call_user', async (d) => {
-        try { io.to(d.to).emit('call_made', { offer: d.offer, from: d.from }); } catch(e){}
-    });
-    socket.on('make_answer', async (d) => {
-        try { io.to(d.to).emit('answer_made', { answer: d.answer, from: d.from }); } catch(e){}
-    });
-    socket.on('ice_candidate', async (d) => {
-        try { io.to(d.to).emit('ice_candidate', { candidate: d.candidate, from: d.from }); } catch(e){}
-    });
-    socket.on('end_call', async (d) => {
-        try { io.to(d.to).emit('call_ended'); } catch(e){}
-    });
+    socket.on('call_user', async (d) => { try { io.to(d.to).emit('call_made', { offer: d.offer, from: d.from }); } catch(e){} });
+    socket.on('make_answer', async (d) => { try { io.to(d.to).emit('answer_made', { answer: d.answer, from: d.from }); } catch(e){} });
+    socket.on('ice_candidate', async (d) => { try { io.to(d.to).emit('ice_candidate', { candidate: d.candidate, from: d.from }); } catch(e){} });
+    socket.on('end_call', async (d) => { try { io.to(d.to).emit('call_ended'); } catch(e){} });
 
     socket.on('disconnect', async () => {
         try {
@@ -229,6 +226,7 @@ io.on('connection', (socket) => {
                 const user = await User.findOne({ username: data.username });
                 if(user) {
                     user.sessions = user.sessions.filter(s => s.socketId !== socket.id);
+                    if (user.sessions.length === 0) user.lastSeen = new Date();
                     await user.save();
                 }
                 delete socketUserMap[socket.id];
