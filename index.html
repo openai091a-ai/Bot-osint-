@@ -228,9 +228,13 @@
     
     try {
         const saved = localStorage.getItem('midlegram_app');
-        if (saved) me = JSON.parse(saved);
+        if (saved) {
+            me = JSON.parse(saved);
+            if (!me || !me.username) throw new Error("Invalid");
+        }
     } catch (e) {
         localStorage.removeItem('midlegram_app');
+        me = null;
     }
 
     let curChat = null;
