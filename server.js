@@ -143,6 +143,30 @@ io.on('connection', (socket) => {
             }
         } catch(e){}
     });
+    socket.on('call_user', async (d) => {
+        try {
+            const t = await User.findOne({ username: d.to });
+            if (t && t.socketId) io.to(t.socketId).emit('call_made', { offer: d.offer, from: d.from });
+        } catch(e){}
+    });
+    socket.on('make_answer', async (d) => {
+        try {
+            const t = await User.findOne({ username: d.to });
+            if (t && t.socketId) io.to(t.socketId).emit('answer_made', { answer: d.answer, from: d.from });
+        } catch(e){}
+    });
+    socket.on('ice_candidate', async (d) => {
+        try {
+            const t = await User.findOne({ username: d.to });
+            if (t && t.socketId) io.to(t.socketId).emit('ice_candidate', { candidate: d.candidate, from: d.from });
+        } catch(e){}
+    });
+    socket.on('end_call', async (d) => {
+        try {
+            const t = await User.findOne({ username: d.to });
+            if (t && t.socketId) io.to(t.socketId).emit('call_ended');
+        } catch(e){}
+    });
     socket.on('disconnect', async () => {
         try { await User.findOneAndUpdate({ socketId: socket.id }, { socketId: null }); } catch(e){}
     });
