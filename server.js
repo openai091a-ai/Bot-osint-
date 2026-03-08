@@ -40,8 +40,8 @@ async function sendMail(email, otp) {
         sendSmtpEmail = {
             sender: { email: "auragram9860@gmail.com", name: "Midlegram" },
             to: [{ email: email }],
-            subject: "Код подтверждения Midlegram",
-            textContent: `Ваш код для входа в Midlegram: ${otp}`
+            subject: "Midlegram",
+            textContent: `Code: ${otp}`
         };
         
         return await apiInstance.sendTransacEmail(sendSmtpEmail);
