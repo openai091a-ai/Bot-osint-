@@ -90,6 +90,13 @@ app.post('/api/user/status', async (req, res) => {
     } catch(e) { res.json({ online: false }); }
 });
 
+app.post('/api/user/info', async (req, res) => {
+    try {
+        const user = await User.findOne({ username: req.body.username });
+        res.json(user || {});
+    } catch(e) { res.json({}); }
+});
+
 app.post('/api/user/update', async (req, res) => {
     try {
         const user = await User.findOneAndUpdate({ username: req.body.username }, { settings: req.body.settings }, { new: true });
@@ -184,7 +191,7 @@ io.on('connection', (socket) => {
                 if (c && !c.mutes.includes(d.from)) io.to(d.to).emit('new_msg', msgObj);
             } else {
                 io.to(d.to).emit('new_msg', msgObj);
-                io.to(d.from).emit('new_msg', msgObj);
+                if(d.from !== d.to) io.to(d.from).emit('new_msg', msgObj);
             }
         } catch(e){}
     });
