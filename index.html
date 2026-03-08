@@ -2,609 +2,104 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Midlegram</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Технические работы | Midlegram</title>
     <style>
-        :root { --bg: #0f1721; --panel: #1c2733; --accent: #3390ec; --text: #fff; --msg-in: #182533; --msg-out: #2b5278; --danger: #ff3b30; --gold: #f59e0b; --call: #34c759; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
-        input { user-select: text !important; -webkit-user-select: text !important; }
-        body { margin: 0; min-height: 100vh; background: #000; color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        #app-container { width: 100%; max-width: 480px; height: 100vh; position: relative; background: var(--bg); overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.8); display: flex; flex-direction: column; }
-        .screen { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--bg); transition: opacity 0.2s; }
-        .active { display: flex; }
-        .nav-bar { height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); background: var(--panel); display: flex; align-items: center; padding-inline: 15px; border-bottom: 1px solid #101921; flex-shrink: 0; z-index: 20; }
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #0f1721;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+        }
         
-        .animated-title { background: linear-gradient(90deg, #fff, var(--accent), #fff); background-size: 200% auto; color: transparent; -webkit-background-clip: text; animation: shine 3s linear infinite; font-size: 19px; font-weight: 800; }
-        @keyframes shine { to { background-position: 200% center; } }
-        
-        .status-text { font-size: 12px; display: block; font-weight: normal; margin-top: -2px; transition: color 0.3s; }
-        
-        .input-main { width: 100%; background: var(--panel); border: none; color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; outline: none; font-size: 15px; }
-        .btn { width: 100%; background: var(--accent); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
-        .btn:active { transform: scale(0.98); opacity: 0.9; }
-        .avatar { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; color: white; font-size: 18px; object-fit: cover; background-size: cover; background-position: center; }
-        
-        .chat-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: cover; background-position: center; scroll-behavior: smooth; }
-        
-        .bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 15px; position: relative; word-wrap: break-word; line-height: 1.4; opacity: 0; animation: popIn 0.3s forwards; }
-        .bubble.in { align-self: flex-start; background: var(--msg-in); border-bottom-left-radius: 4px; transform-origin: bottom left; }
-        .bubble.out { align-self: flex-end; background: var(--msg-out); border-bottom-right-radius: 4px; transform-origin: bottom right; }
-        @keyframes popIn { 0% { opacity: 0; transform: scale(0.8) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-        
-        .bubble img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-        .video-note { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); margin-top: 5px; display: block; }
-        
-        .input-box { background: var(--panel); padding: 10px; display: flex; align-items: center; gap: 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); flex-shrink: 0; }
-        .input-box input { flex: 1; background: var(--bg); border: none; color: #fff; padding: 12px 15px; border-radius: 20px; outline: none; font-size: 15px; }
-        
-        .setting-row { padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #101921; background: var(--panel); cursor: pointer; }
-        .switch { width: 44px; height: 24px; background: #333; border-radius: 12px; position: relative; transition: 0.3s; }
-        .switch.on { background: var(--accent); }
-        .switch::after { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: 0.3s; }
-        .switch.on::after { left: 22px; }
-        
-        .row { display: flex; padding: 15px; align-items: center; gap: 15px; border-bottom: 1px solid #101921; cursor: pointer; transition: background 0.2s; }
-        .row:hover { background: #151f2b; }
-        .icon-btn { font-size: 22px; color: #708499; padding: 5px; cursor: pointer; transition: 0.2s; }
-        .icon-btn:hover { color: var(--accent); }
-        .pin-bar { background: var(--panel); padding: 10px 15px; border-bottom: 1px solid #101921; font-size: 13px; display: flex; align-items: center; gap: 10px; border-left: 3px solid var(--accent); cursor: pointer; flex-shrink: 0; }
-        
-        .pulse { animation: pulse-animation 2s infinite; }
-        @keyframes pulse-animation { 0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(52, 199, 89, 0); } 100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); } }
+        .container {
+            text-align: center;
+            padding: 40px 30px;
+            max-width: 90%;
+            width: 340px;
+            background: #1c2733;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            border: 1px solid #2a394a;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0 0 15px 0;
+            background: linear-gradient(90deg, #ffffff, #3390ec);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        p {
+            font-size: 15px;
+            color: #708499;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .loader {
+            margin-top: 35px;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            background-color: #3390ec;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); scale: 0.95; }
+            to { opacity: 1; transform: translateY(0); scale: 1; }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
 
-<div id="app-container">
-    <div id="scr-auth" class="screen active" style="padding: 20px; justify-content: center; overflow-y: auto;">
-        <h1 style="text-align: center; margin-bottom: 40px; font-size: 40px;"><i class="fa-solid fa-paper-plane" style="color:var(--accent)"></i></h1>
-        <div id="form-reg">
-            <input type="text" id="reg-name" class="input-main" placeholder="Имя">
-            <input type="text" id="reg-user" class="input-main" placeholder="Никнейм (без @)">
-            <input type="password" id="reg-pass" class="input-main" placeholder="Пароль">
-            <input type="password" id="reg-pass2" class="input-main" placeholder="Повторите пароль">
-            <button onclick="auth.register()" class="btn" style="margin-top: 10px;">Создать аккаунт</button>
-            <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Уже есть аккаунт? Войти</p>
-        </div>
-        <div id="form-login" style="display:none;">
-            <input type="text" id="log-id" class="input-main" placeholder="Никнейм (без @)">
-            <input type="password" id="log-pass" class="input-main" placeholder="Пароль">
-            <button onclick="auth.login()" class="btn" style="margin-top: 10px;">Войти</button>
-            <p onclick="auth.toggle()" style="text-align:center; color:var(--accent); margin-top:25px; cursor:pointer; font-weight: 500;">Создать аккаунт</p>
+    <div class="container">
+        <div class="icon">⚙️</div>
+        <h1>Обслуживание серверов</h1>
+        <p>К сожалению, наши сервера временно находятся на технических работах или перегружены. Пожалуйста, зайдите через некоторое время.</p>
+        
+        <div class="loader">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
         </div>
     </div>
 
-    <div id="scr-main" class="screen">
-        <div class="nav-bar">
-            <i class="fa-solid fa-bars icon-btn" onclick="showScreen('scr-settings')"></i>
-            <div style="flex:1; text-align:center;">
-                <b class="animated-title" id="app-title">Midlegram</b>
-                <span class="status-text" id="net-status">Соединение...</span>
-            </div>
-            <i class="fa-solid fa-magnifying-glass icon-btn" onclick="toggleSearch()"></i>
-        </div>
-        <div id="search-box" style="display:none; padding:10px; background:var(--panel); z-index: 10; flex-shrink:0;">
-            <input type="text" id="sq" class="input-main" style="margin:0; background:var(--bg);" placeholder="Поиск..." oninput="search()">
-        </div>
-        <div id="contacts" style="flex:1; overflow-y:auto;"></div>
-        <div style="padding:15px; display:flex; gap:10px; background:var(--panel); border-top: 1px solid #101921; flex-shrink: 0;">
-            <button onclick="openCreate('group')" class="btn" style="flex:1; background:var(--bg); color:var(--accent); margin:0; padding:12px;"><i class="fa-solid fa-users"></i> Группа</button>
-            <button onclick="openCreate('channel')" class="btn" style="flex:1; background:var(--bg); color:var(--accent); margin:0; padding:12px;"><i class="fa-solid fa-bullhorn"></i> Канал</button>
-        </div>
-    </div>
-
-    <div id="scr-create" class="screen" style="padding:20px;">
-        <div class="nav-bar" style="background:transparent; padding:0 0 20px 0; border:none;">
-            <i class="fa-solid fa-arrow-left icon-btn" onclick="showScreen('scr-main')"></i>
-            <b id="create-title" style="margin-left:15px; font-size: 18px;">Создание</b>
-        </div>
-        <input type="text" id="c-name" class="input-main" placeholder="Название">
-        <input type="text" id="c-user" class="input-main" placeholder="@username_чата">
-        <button onclick="confirmCreate()" class="btn" style="margin-top: 10px;">Создать</button>
-    </div>
-
-    <div id="scr-chat" class="screen">
-        <div class="nav-bar">
-            <i class="fa-solid fa-arrow-left icon-btn" onclick="showScreen('scr-main')"></i>
-            <div id="chat-icon" class="avatar" style="width:38px; height:38px; margin: 0 12px; cursor:pointer;" onclick="viewProfile()"></div>
-            <div style="flex:1; cursor:pointer; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;" onclick="viewProfile()">
-                <b id="chat-target-name" style="font-size:16px;">User</b>
-                <span id="chat-status-sub" style="display:block; font-size:12px; color:var(--accent);">загрузка...</span>
-            </div>
-            <i class="fa-solid fa-phone icon-btn" id="btn-call" style="margin-right: 15px;" onclick="startCall()"></i>
-            <i class="fa-solid fa-ellipsis-v icon-btn" id="admin-tools" style="display:none;" onclick="toggleAdminPanel()"></i>
-        </div>
-        <div id="pin-area" class="pin-bar" style="display:none;" onclick="alert(curChat.pinned.text)">
-            <i class="fa-solid fa-thumbtack" style="color:var(--accent)"></i>
-            <div style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
-                <b style="color:var(--accent); display:block; font-size:12px;">Закрепленное сообщение</b>
-                <span id="pin-text" style="color:#708499;">...</span>
-            </div>
-        </div>
-        <div class="chat-area" id="msgs"></div>
-        <div id="join-box" style="display:none; padding:15px; background:var(--panel); flex-shrink:0;">
-            <button class="btn" onclick="joinGroup()">Вступить</button>
-        </div>
-        <div class="input-box" id="chat-input-area">
-            <label for="f-up"><i class="fa-solid fa-paperclip icon-btn"></i></label>
-            <input type="file" id="f-up" hidden onchange="sendFile(event)">
-            <input type="text" id="mi" placeholder="Сообщение..." onkeypress="if(event.key==='Enter') send()">
-            <i class="fa-solid fa-video icon-btn" id="btn-vid" onclick="toggleVideoRecord()"></i>
-            <i class="fa-solid fa-paper-plane icon-btn" style="color:var(--accent);" onclick="send()"></i>
-        </div>
-    </div>
-
-    <div id="admin-panel" style="position:absolute; bottom:0; left:0; right:0; background:var(--panel); display:none; flex-direction:column; padding:20px; border-radius:24px 24px 0 0; z-index:1000; box-shadow: 0 -10px 40px rgba(0,0,0,0.6);">
-        <div style="width: 40px; height: 4px; background: #333; border-radius: 2px; align-self: center; margin-bottom: 20px;"></div>
-        <div style="color:var(--accent); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('pin')"><i class="fa-solid fa-thumbtack" style="width:25px;"></i> Закрепить сообщение</div>
-        <div style="color:var(--gold); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('mute')"><i class="fa-solid fa-microphone-lines-slash" style="width:25px;"></i> Замутить участника</div>
-        <div style="color:var(--danger); padding:15px; cursor:pointer; font-weight:600; font-size:16px;" onclick="adminAction('kick')"><i class="fa-solid fa-user-minus" style="width:25px;"></i> Выгнать участника</div>
-        <button onclick="toggleAdminPanel()" class="btn" style="margin-top:15px; background:#2a394a;">Закрыть</button>
-    </div>
-
-    <div id="scr-settings" class="screen">
-        <div class="nav-bar">
-            <i class="fa-solid fa-arrow-left icon-btn" onclick="showScreen('scr-main')"></i>
-            <b style="margin-left: 15px; font-size:18px;">Настройки</b>
-        </div>
-        <div style="flex:1; overflow-y:auto; background:var(--bg);">
-            <div style="padding: 30px; text-align: center; background: var(--panel); border-bottom: 1px solid #101921; position: relative;">
-                <input type="file" id="ava-up" hidden accept="image/*" onchange="uploadAvatar(event)">
-                <label for="ava-up" id="my-av" class="avatar" style="width: 90px; height: 90px; font-size: 35px; margin: 0 auto 15px; cursor:pointer;"></label>
-                <h2 id="my-name" style="margin: 0 0 5px 0;">Name</h2>
-                <div style="color:#708499; margin-bottom: 10px;" id="my-username"></div>
-                <div id="my-gold-badge"></div>
-            </div>
-            <div class="setting-row" onclick="buyGold()" style="margin-top:20px;">
-                <div><i class="fa-solid fa-star" style="color:var(--gold); margin-right:15px; width:20px; text-align:center;"></i> <b style="color:var(--text);">Midlegram Gold</b></div>
-                <div style="color:var(--gold); font-weight:bold;">$7.00</div>
-            </div>
-            <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Конфиденциальность</div>
-            <div class="setting-row" onclick="openSessions()">
-                <div><i class="fa-solid fa-desktop" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Сессии устройств</div>
-                <i class="fa-solid fa-chevron-right" style="color:#708499;"></i>
-            </div>
-            <div class="setting-row" onclick="togglePrivacy()">
-                <div><i class="fa-solid fa-eye-slash" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Скрыть данные профиля</div>
-                <div id="tog-priv" class="switch"></div>
-            </div>
-            <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Уведомления</div>
-            <div class="setting-row" onclick="toggleNotif()">
-                <div><i class="fa-solid fa-bell" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Звук сообщений</div>
-                <div id="tog-notif" class="switch"></div>
-            </div>
-            <div class="setting-row" onclick="changeRingtone()">
-                <div><i class="fa-solid fa-music" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Рингтон звонка</div>
-                <div id="ringtone-val" style="color:var(--accent); font-weight:500;"></div>
-            </div>
-            <div class="setting-row" style="margin-top: 30px; justify-content: center; color: var(--danger);" onclick="logout()">
-                <b style="font-size: 16px;">Выйти из аккаунта</b>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-sessions" class="screen" style="z-index: 2000;">
-        <div class="nav-bar">
-            <i class="fa-solid fa-arrow-left icon-btn" onclick="document.getElementById('modal-sessions').style.display='none'"></i>
-            <b style="margin-left: 15px; font-size:18px;">Сессии устройств</b>
-        </div>
-        <div id="sessions-list" style="flex:1; overflow-y:auto; padding: 15px; background:var(--bg);"></div>
-    </div>
-
-    <div id="modal-profile" class="screen" style="z-index: 1000; background: rgba(0,0,0,0.85); justify-content: center; padding: 20px; backdrop-filter: blur(5px);">
-        <div style="background: var(--panel); padding: 30px; border-radius: 20px; text-align: center; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-            <i class="fa-solid fa-xmark icon-btn" style="position: absolute; top: 15px; right: 15px;" onclick="document.getElementById('modal-profile').style.display='none'"></i>
-            <div id="p-av" class="avatar" style="width: 90px; height: 90px; font-size: 35px; margin: 0 auto 15px;"></div>
-            <h2 id="p-name" style="margin: 0 0 5px 0;">Name</h2>
-            <div id="p-username" style="color: var(--accent); margin-bottom: 20px; font-weight:500;"></div>
-            <div style="background: var(--bg); padding: 15px; border-radius: 12px; text-align: left;">
-                <div style="font-size: 13px; color: var(--accent); margin-bottom: 8px; font-weight:bold; text-transform:uppercase;">О себе</div>
-                <div id="p-bio" style="line-height:1.4;"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-call" class="screen" style="z-index: 3000; background: rgba(15,23,33,0.98); justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(10px);">
-        <div id="call-caller-av" class="avatar pulse" style="width: 130px; height: 130px; font-size: 50px; margin-bottom: 15px; box-shadow: 0 0 40px rgba(51, 144, 236, 0.4);"></div>
-        <h2 id="call-caller-name" style="margin: 0; font-size: 24px;">Caller</h2>
-        <p id="call-status" style="margin-top: 5px; margin-bottom: 50px; color: var(--accent);">Звонок...</p>
-        
-        <div style="display: flex; gap: 40px;">
-            <div class="avatar" style="width: 75px; height: 75px; background: var(--danger); font-size: 28px; cursor: pointer; transition: 0.2s;" onclick="endCall()" id="btn-end-call"><i class="fa-solid fa-phone-slash"></i></div>
-            <div class="avatar" style="width: 75px; height: 75px; background: var(--call); font-size: 28px; cursor: pointer; transition: 0.2s; display: none;" id="btn-accept-call" onclick="acceptCall()"><i class="fa-solid fa-phone"></i></div>
-        </div>
-        <audio id="remote-audio" autoplay></audio>
-    </div>
-</div>
-
-<script>
-    if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
-
-    let myDeviceId = localStorage.getItem('midlegram_device');
-    if(!myDeviceId) { myDeviceId = Math.random().toString(36).substring(2); localStorage.setItem('midlegram_device', myDeviceId); }
-
-    function getDeviceName() {
-        const ua = navigator.userAgent;
-        if (/android/i.test(ua)) return "Android";
-        if (/iphone|ipad|ipod/i.test(ua)) return "iOS";
-        if (/windows/i.test(ua)) return "Windows";
-        if (/mac/i.test(ua)) return "Mac";
-        return "Web Browser";
-    }
-
-    function getBadge(u) { 
-        if(!u) return '';
-        const name = u.startsWith('@') ? u.toLowerCase() : '@' + u.toLowerCase();
-        return ['@developer', '@zxcswatme'].includes(name) ? '<i class="fa-solid fa-circle-check" style="color:#00a8ff; margin-left:5px; font-size:14px;"></i>' : ''; 
-    }
-    
-    function setAv(el, u) { 
-        if(u && u.avatarUrl) { el.style.backgroundImage = `url(${u.avatarUrl})`; el.innerText = ''; } 
-        else if(u) { el.style.backgroundImage = ''; el.innerText = (u.name || 'U')[0].toUpperCase(); el.style.background = u.avatarColor || '#3390ec'; } 
-    }
-
-    function formatLastSeen(dateStr) {
-        if(!dateStr) return "Был(а) недавно";
-        const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
-        if(diff < 5) return "Был(а) только что";
-        if(diff < 60) return `Был(а) ${Math.floor(diff)} минут назад`;
-        if(diff < 24*60) return "Был(а) сегодня";
-        return "Был(а) давно";
-    }
-
-    const socket = io();
-    let me = null;
-    try { const saved = localStorage.getItem('midlegram_app'); if(saved) me = JSON.parse(saved); } catch(e) { localStorage.removeItem('midlegram_app'); }
-    
-    let curChat = null;
-    let createType = 'group';
-    let typingTimeout;
-    let mediaRecorder;
-    let videoChunks = [];
-    const sounds = { 
-        msg: new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3'),
-        ring: new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3')
-    };
-    sounds.ring.loop = true;
-    
-    let peerConnection;
-    let localStream;
-    let incomingCallData = null;
-    const iceServers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
-    const auth = {
-        toggle() {
-            const r = document.getElementById('form-reg');
-            const l = document.getElementById('form-login');
-            r.style.display = r.style.display === 'none' ? 'block' : 'none';
-            l.style.display = l.style.display === 'none' ? 'block' : 'none';
-        },
-        async register() {
-            const data = { name: document.getElementById('reg-name').value, username: document.getElementById('reg-user').value.replace('@',''), password: document.getElementById('reg-pass').value };
-            if(!data.name || !data.username || !data.password) return;
-            if(data.password !== document.getElementById('reg-pass2').value) return;
-            const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            if(res.ok) { localStorage.setItem('midlegram_app', JSON.stringify((await res.json()).user)); location.reload(); }
-        },
-        async login() {
-            const login = document.getElementById('log-id').value.replace('@','');
-            const password = document.getElementById('log-pass').value;
-            if(!login || !password) return;
-            const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login, password }) });
-            if(res.ok) { localStorage.setItem('midlegram_app', JSON.stringify((await res.json()).user)); location.reload(); }
-        }
-    };
-
-    socket.on('connect', () => {
-        if(me) socket.emit('identify', { username: me.username, deviceId: myDeviceId, deviceName: getDeviceName() });
-    });
-
-    async function checkNet() {
-        const s = document.getElementById('net-status');
-        if(!navigator.onLine) { s.innerText = "Ожидание сети..."; s.style.color = "var(--danger)"; return; }
-        try { 
-            await fetch('/api/ping'); 
-            s.innerText = "В сети"; 
-            s.style.color = "var(--accent)"; 
-            setTimeout(()=> { s.innerText = ""; }, 2000);
-        } 
-        catch(e) { s.innerText = "Обновление..."; s.style.color = "var(--gold)"; }
-    }
-
-    async function init() {
-        if(!me) { document.getElementById('scr-auth').classList.add('active'); return; }
-        document.getElementById('scr-auth').classList.remove('active');
-        document.getElementById('scr-main').classList.add('active');
-        checkNet(); setInterval(checkNet, 5000);
-        renderSettings(); search('');
-    }
-
-    function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); if(id === 'scr-settings') renderSettings(); }
-    
-    function toggleSearch() { const s = document.getElementById('search-box'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; }
-
-    async function search(forceQuery) {
-        const q = forceQuery !== undefined ? forceQuery : document.getElementById('sq').value;
-        const res = await fetch(`/api/search?q=${q}`);
-        const { users, chats } = await res.json();
-        let html = '';
-        users.filter(u => u.username !== me.username).forEach(u => html += `<div class="row" onclick="openChat('${u.username}', '${u.name}', '${encodeURIComponent(JSON.stringify(u))}', false, false, 'pm', null, true)"><div class="avatar" style="background:${u.avatarColor}; background-image:url(${u.avatarUrl||''})">${u.avatarUrl?'':u.name[0].toUpperCase()}</div><div style="flex:1;"><b>${u.name}${getBadge(u.username)}</b><br><small style="color:#708499">@${u.username}</small></div></div>`);
-        chats.forEach(c => html += `<div class="row" onclick="openChat('${c.username}', '${c.title}', '${encodeURIComponent(JSON.stringify({name:c.title, avatarColor:'#3390ec'}))}', true, ${c.admins.includes(me.username)}, '${c.type}', '${encodeURIComponent(JSON.stringify(c.pinnedMessage||null))}', ${c.members.includes(me.username)})"><div class="avatar" style="background:#3390ec"><i class="fa-solid ${c.type==='channel'?'fa-bullhorn':'fa-users'}"></i></div><div style="flex:1;"><b>${c.title}</b><br><small style="color:#708499">${c.username}</small></div></div>`);
-        document.getElementById('contacts').innerHTML = html;
-    }
-
-    function openCreate(type) { createType = type; document.getElementById('create-title').innerText = type === 'group' ? 'Новая группа' : 'Новый канал'; showScreen('scr-create'); }
-    async function confirmCreate() {
-        const title = document.getElementById('c-name').value;
-        const username = document.getElementById('c-user').value;
-        const res = await fetch('/api/chat/create', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title, username, type:createType, owner: me.username}) });
-        if(res.ok) { document.getElementById('c-name').value=''; document.getElementById('c-user').value=''; showScreen('scr-main'); search(''); }
-    }
-
-    async function openChat(user, name, uDataRaw, isGroup, isAdmin, chatType, pinnedObjRaw, isMember) {
-        let pinnedObj = null; let uData = {name: name, avatarColor: '#3390ec'};
-        try { if(pinnedObjRaw && pinnedObjRaw !== 'null') pinnedObj = JSON.parse(decodeURIComponent(pinnedObjRaw)); } catch(e){}
-        try { if(uDataRaw) uData = JSON.parse(decodeURIComponent(uDataRaw)); } catch(e){}
-        
-        curChat = { user, name, isGroup, isAdmin, chatType, pinned: pinnedObj, isMember, uData };
-        document.getElementById('chat-target-name').innerHTML = `${name}${getBadge(user)}`;
-        setAv(document.getElementById('chat-icon'), uData);
-        if(isGroup) document.getElementById('chat-icon').innerHTML = chatType==='channel'?'<i class="fa-solid fa-bullhorn"></i>':'<i class="fa-solid fa-users"></i>';
-        
-        document.getElementById('msgs').innerHTML = '';
-        document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
-        document.getElementById('btn-call').style.display = isGroup ? 'none' : 'block';
-        
-        document.getElementById('chat-input-area').style.display = 'none';
-        document.getElementById('join-box').style.display = 'none';
-        
-        if(!isGroup) document.getElementById('chat-input-area').style.display = 'flex';
-        else if(chatType === 'channel') { if(isAdmin) document.getElementById('chat-input-area').style.display = 'flex'; else if(!isMember) document.getElementById('join-box').style.display = 'block'; }
-        else if(chatType === 'group') { if(isMember) document.getElementById('chat-input-area').style.display = 'flex'; else document.getElementById('join-box').style.display = 'block'; }
-        
-        if(pinnedObj && pinnedObj.text) { document.getElementById('pin-text').innerText = pinnedObj.text; document.getElementById('pin-area').style.display = 'flex'; }
-        else document.getElementById('pin-area').style.display = 'none';
-
-        if(!isGroup) {
-            const st = await fetch('/api/user/status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user}) });
-            const statusData = await st.json();
-            const sub = document.getElementById('chat-status-sub');
-            if(statusData.online) { sub.innerText = "В сети"; sub.style.color = "var(--accent)"; }
-            else { sub.innerText = formatLastSeen(statusData.lastSeen); sub.style.color = "#708499"; }
-        } else {
-            document.getElementById('chat-status-sub').innerText = chatType==='channel' ? 'Канал' : 'Группа';
-            document.getElementById('chat-status-sub').style.color = "#708499";
-        }
-
-        const msgsRes = await fetch('/api/messages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({from:me.username, to:user}) });
-        const msgs = await msgsRes.json();
-        msgs.forEach(m => addMsg({ ...m, type: m.from === me.username ? 'out' : 'in' }));
-
-        showScreen('scr-chat');
-        setTimeout(() => { const d = document.getElementById('msgs'); d.scrollTop = d.scrollHeight; }, 50);
-    }
-
-    function joinGroup() { socket.emit('join_chat', { username: me.username, chat: curChat.user }); }
-    socket.on('joined_success', (c) => {
-        if(curChat && curChat.user === c.username) { curChat.isMember = true; document.getElementById('join-box').style.display = 'none'; if(curChat.chatType === 'group' || curChat.isAdmin) document.getElementById('chat-input-area').style.display = 'flex'; }
-    });
-
-    socket.on('is_typing', (data) => {
-        if (curChat && curChat.user === data.from) {
-            const sub = document.getElementById('chat-status-sub');
-            const old = sub.innerText; const oldCol = sub.style.color;
-            sub.innerText = "печатает..."; sub.style.color = "var(--accent)"; clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => { sub.innerText = old; sub.style.color = oldCol; }, 2000);
-        }
-    });
-
-    function send() {
-        const i = document.getElementById('mi');
-        if(!i.value.trim() || !curChat) return;
-        socket.emit('send_msg', { from: me.username, to: curChat.user, text: i.value.trim() });
-        i.value = '';
-    }
-
-    async function sendFile(e) {
-        const file = e.target.files[0];
-        if (!file || !curChat) return;
-        const reader = new FileReader();
-        reader.onload = () => socket.emit('send_msg', { from: me.username, to: curChat.user, text: `Файл: ${file.name}`, fileData: reader.result });
-        reader.readAsDataURL(file);
-    }
-
-    async function toggleVideoRecord() {
-        if (!curChat) return;
-        const btn = document.getElementById('btn-vid');
-        if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); btn.style.color = '#708499'; return; }
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            videoChunks = [];
-            mediaRecorder.ondataavailable = e => videoChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const reader = new FileReader();
-                reader.onload = () => socket.emit('send_msg', { from: me.username, to: curChat.user, videoData: reader.result });
-                reader.readAsDataURL(new Blob(videoChunks, { type: 'video/webm' }));
-                stream.getTracks().forEach(track => track.stop());
-            };
-            mediaRecorder.start(); btn.style.color = 'var(--danger)';
-        } catch (err) { alert("Микрофон/Камера недоступны"); }
-    }
-
-    socket.on('new_msg', (data) => {
-        if(me.settings.notifications && data.from !== me.username) {
-            sounds.msg.play().catch(()=>{});
-            if (Notification.permission === "granted" && document.hidden) {
-                new Notification(data.from, { body: data.text || "Новое медиа", icon: 'https://cdn-icons-png.flaticon.com/512/9068/9068642.png' });
-            }
-        }
-        if(curChat && (curChat.user === data.from || curChat.user === data.to)) {
-            addMsg({ ...data, type: data.from === me.username ? 'out' : 'in' });
-        }
-    });
-
-    socket.on('chat_update', (data) => {
-        if(curChat && curChat.user === data.username && data.pinnedMessage && data.pinnedMessage.text) {
-            curChat.pinned = data.pinnedMessage; document.getElementById('pin-text').innerText = data.pinnedMessage.text; document.getElementById('pin-area').style.display = 'flex';
-        }
-    });
-
-    socket.on('force_logout', () => logout());
-
-    function addMsg(data) {
-        const d = document.getElementById('msgs');
-        let content = '';
-        if(data.type === 'in' && curChat && curChat.isGroup) content += `<div style="font-size:11px; color:var(--accent); font-weight:bold; margin-bottom:4px;">${data.from}${getBadge(data.from)}</div>`;
-        if(data.videoData) content += `<video src="${data.videoData}" class="video-note" autoplay loop playsinline></video>`;
-        if(data.fileData) content += `<img src="${data.fileData}">`;
-        if(data.text) content += `<div>${data.text}</div>`;
-        d.innerHTML += `<div class="bubble ${data.type}">${content}<div style="font-size:10px; color:rgba(255,255,255,0.5); text-align:right; margin-top:4px;">${data.time||''}</div></div>`;
-        d.scrollTop = d.scrollHeight;
-    }
-
-    function toggleAdminPanel() { const p = document.getElementById('admin-panel'); p.style.display = p.style.display === 'none' ? 'flex' : 'none'; }
-    function adminAction(type) {
-        let user = prompt("Введите @username участника:");
-        if(!user) return;
-        socket.emit('action', { type, user: user.replace('@',''), message: null, admin: me.username, chat: curChat.user });
-        toggleAdminPanel();
-    }
-
-    async function startCall() {
-        if(!curChat || curChat.isGroup) return;
-        
-        document.getElementById('call-caller-name').innerHTML = `${curChat.name}${getBadge(curChat.user)}`;
-        setAv(document.getElementById('call-caller-av'), curChat.uData);
-        
-        document.getElementById('modal-call').style.display = 'flex';
-        document.getElementById('call-status').innerText = 'Исходящий звонок...';
-        document.getElementById('btn-accept-call').style.display = 'none';
-        sounds.ring.play().catch(()=>{});
-        
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            peerConnection = new RTCPeerConnection(iceServers);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            peerConnection.onicecandidate = e => { if(e.candidate) socket.emit('ice_candidate', { to: curChat.user, candidate: e.candidate, from: me.username }); };
-            peerConnection.ontrack = e => { document.getElementById('remote-audio').srcObject = e.streams[0]; };
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            socket.emit('call_user', { offer, to: curChat.user, from: me.username });
-        } catch(e) { endCall(); alert("Доступ к микрофону запрещен"); }
-    }
-
-    socket.on('call_made', async (data) => {
-        incomingCallData = data; 
-        
-        const callerInfo = await (await fetch('/api/user/info', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: data.from }) })).json();
-        
-        document.getElementById('call-caller-name').innerHTML = `${callerInfo.name || data.from}${getBadge(data.from)}`;
-        setAv(document.getElementById('call-caller-av'), callerInfo);
-        
-        document.getElementById('modal-call').style.display = 'flex';
-        document.getElementById('call-status').innerText = 'Входящий звонок...'; 
-        document.getElementById('btn-accept-call').style.display = 'flex';
-        sounds.ring.play().catch(()=>{});
-        
-        if (Notification.permission === "granted" && document.hidden) {
-            new Notification("Входящий звонок", { body: `Звонит ${callerInfo.name || data.from}`, icon: 'https://cdn-icons-png.flaticon.com/512/9068/9068642.png' });
-        }
-    });
-
-    async function acceptCall() {
-        sounds.ring.pause(); sounds.ring.currentTime = 0;
-        document.getElementById('btn-accept-call').style.display = 'none'; 
-        document.getElementById('call-status').innerText = 'На связи';
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            peerConnection = new RTCPeerConnection(iceServers);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            peerConnection.onicecandidate = e => { if(e.candidate) socket.emit('ice_candidate', { to: incomingCallData.from, candidate: e.candidate, from: me.username }); };
-            peerConnection.ontrack = e => { document.getElementById('remote-audio').srcObject = e.streams[0]; };
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            socket.emit('make_answer', { answer, to: incomingCallData.from, from: me.username });
-        } catch(e) { endCall(); }
-    }
-
-    socket.on('answer_made', async (data) => { sounds.ring.pause(); sounds.ring.currentTime = 0; document.getElementById('call-status').innerText = 'На связи'; if(peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer)); });
-    socket.on('ice_candidate', async (data) => { if(peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate)); });
-
-    function endCall() {
-        sounds.ring.pause(); sounds.ring.currentTime = 0;
-        if(peerConnection) peerConnection.close(); if(localStream) localStream.getTracks().forEach(t => t.stop());
-        document.getElementById('modal-call').style.display = 'none';
-        if(curChat && curChat.user) socket.emit('end_call', { to: curChat.user });
-        else if(incomingCallData && incomingCallData.from) socket.emit('end_call', { to: incomingCallData.from });
-        incomingCallData = null;
-    }
-    socket.on('call_ended', () => {
-        sounds.ring.pause(); sounds.ring.currentTime = 0;
-        if(peerConnection) peerConnection.close(); if(localStream) localStream.getTracks().forEach(t => t.stop());
-        document.getElementById('modal-call').style.display = 'none'; incomingCallData = null;
-    });
-
-    function renderSettings() {
-        document.getElementById('my-name').innerHTML = `${me.name}${getBadge(me.username)}`;
-        document.getElementById('my-username').innerText = '@' + me.username;
-        setAv(document.getElementById('my-av'), me);
-        document.getElementById('my-gold-badge').innerHTML = me.isGold ? '<span style="background:var(--gold); color:#000; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold;"><i class="fa-solid fa-star"></i> GOLD</span>' : '';
-        document.getElementById('tog-priv').className = `switch ${me.settings.hideData ? 'on' : ''}`;
-        document.getElementById('tog-notif').className = `switch ${me.settings.notifications ? 'on' : ''}`;
-        document.getElementById('ringtone-val').innerText = me.settings.ringtone.toUpperCase();
-    }
-
-    async function uploadAvatar(e) {
-        const file = e.target.files[0]; if(!file) return;
-        const reader = new FileReader();
-        reader.onload = async () => {
-            const res = await fetch('/api/user/avatar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username, avatarUrl: reader.result }) });
-            if(res.ok) { me = await res.json(); localStorage.setItem('midlegram_app', JSON.stringify(me)); renderSettings(); }
-        };
-        reader.readAsDataURL(file);
-    }
-
-    async function updateDB() {
-        const res = await fetch('/api/user/update', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username, settings: me.settings }) });
-        me = await res.json(); localStorage.setItem('midlegram_app', JSON.stringify(me)); renderSettings();
-    }
-
-    function togglePrivacy() { me.settings.hideData = !me.settings.hideData; updateDB(); }
-    function toggleNotif() { me.settings.notifications = !me.settings.notifications; updateDB(); }
-    function changeRingtone() { const tones = ['default', 'classic', 'modern', 'digital']; let idx = tones.indexOf(me.settings.ringtone); me.settings.ringtone = tones[(idx + 1) % tones.length]; updateDB(); }
-    async function buyGold() { if(me.isGold) return; const res = await fetch('/api/user/buy-gold', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username }) }); me = await res.json(); localStorage.setItem('midlegram_app', JSON.stringify(me)); renderSettings(); }
-
-    async function viewProfile() {
-        if(curChat.isGroup) return;
-        const res = await fetch(`/api/search?q=${curChat.user}`);
-        const u = (await res.json()).users[0];
-        document.getElementById('p-name').innerHTML = `${u.name}${getBadge(u.username)}`;
-        document.getElementById('p-username').innerText = '@' + u.username;
-        setAv(document.getElementById('p-av'), u);
-        document.getElementById('p-bio').innerText = u.settings.hideData ? "Информация скрыта настройками приватности" : "Midlegram user";
-        document.getElementById('modal-profile').style.display = 'flex';
-    }
-
-    async function openSessions() {
-        document.getElementById('modal-sessions').style.display = 'flex';
-        document.getElementById('sessions-list').innerHTML = '<div style="text-align:center; padding:20px; color:#708499;">Загрузка...</div>';
-        const sessions = await (await fetch('/api/sessions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username }) })).json();
-        let html = '';
-        sessions.forEach(s => {
-            const isMe = s.deviceId === myDeviceId;
-            html += `<div style="background:var(--panel); padding:15px; border-radius:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;"><div><b style="display:block; font-size:15px;">${s.deviceName} ${isMe ? '<span style="color:var(--accent); font-size:12px;">(Это устройство)</span>' : ''}</b><span style="color:#708499; font-size:12px;">Активность: ${s.time}</span></div>${!isMe ? `<div class="avatar" style="width:35px; height:35px; background:var(--bg); color:var(--danger); font-size:14px; cursor:pointer;" onclick="terminateSession('${s.deviceId}')"><i class="fa-solid fa-trash"></i></div>` : ''}</div>`;
-        });
-        document.getElementById('sessions-list').innerHTML = html;
-    }
-
-    async function terminateSession(id) { await fetch('/api/sessions/terminate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: me.username, deviceId: id }) }); openSessions(); }
-    function logout() { localStorage.removeItem('midlegram_app'); location.reload(); }
-
-    init();
-</script>
 </body>
 </html>
