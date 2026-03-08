@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Midlegramm Ultra</title>
+    <title>Aura Messenger</title>
     <script src="/socket.io/socket.io.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg: #0f1721; --panel: #1c2733; --accent: #3390ec; --text: #fff; --msg-in: #182533; --msg-out: #2b5278; --danger: #ff3b30; --gold: #f59e0b; }
+        :root { --bg: #0f1721; --panel: #1c2733; --accent: #3390ec; --text: #fff; --msg-in: #182533; --msg-out: #2b5278; --danger: #ff3b30; --gold: #f59e0b; --call: #34c759; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
         input { user-select: text !important; -webkit-user-select: text !important; }
         body { margin: 0; min-height: 100vh; background: #000; color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; overflow: hidden; }
@@ -37,6 +37,8 @@
         .icon-btn { font-size: 22px; color: #708499; padding: 5px; cursor: pointer; transition: 0.2s; }
         .icon-btn:hover { color: var(--accent); }
         .pin-bar { background: var(--panel); padding: 10px 15px; border-bottom: 1px solid #101921; font-size: 13px; display: flex; align-items: center; gap: 10px; border-left: 3px solid var(--accent); cursor: pointer; }
+        .pulse { animation: pulse-animation 2s infinite; }
+        @keyframes pulse-animation { 0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(52, 199, 89, 0); } 100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); } }
     </style>
 </head>
 <body>
@@ -73,7 +75,7 @@
     <div id="scr-main" class="screen">
         <div class="nav-bar">
             <i class="fa-solid fa-bars icon-btn" onclick="showScreen('scr-settings')"></i>
-            <div style="flex:1; text-align:center;"><b id="status" style="display:block; font-size:17px; font-weight: 600;">Midlegramm</b></div>
+            <div style="flex:1; text-align:center;"><b id="status" style="display:block; font-size:17px; font-weight: 600;">Aura</b></div>
             <i class="fa-solid fa-magnifying-glass icon-btn" onclick="toggleSearch()"></i>
         </div>
         <div id="search-box" style="display:none; padding:10px; background:var(--panel);">
@@ -104,6 +106,7 @@
                 <b id="chat-target-name" style="display:block; font-size:16px;">User</b>
                 <span id="chat-status-sub" style="font-size:12px; color:var(--accent);">online</span>
             </div>
+            <i class="fa-solid fa-phone icon-btn" id="btn-call" style="margin-right: 15px;" onclick="startCall()"></i>
             <i class="fa-solid fa-ellipsis-v icon-btn" id="admin-tools" style="display:none;" onclick="toggleAdminPanel()"></i>
         </div>
         <div id="pin-area" class="pin-bar" style="display:none;" onclick="alert(curChat.pinned.text)">
@@ -143,18 +146,15 @@
                 <div style="color:#708499; margin-bottom: 10px;" id="my-username"></div>
                 <div id="my-gold-badge"></div>
             </div>
-            
             <div class="setting-row" onclick="buyGold()" style="margin-top:20px;">
-                <div><i class="fa-solid fa-star" style="color:var(--gold); margin-right:15px; width:20px; text-align:center;"></i> <b style="color:var(--text);">Midlegramm Gold</b></div>
+                <div><i class="fa-solid fa-star" style="color:var(--gold); margin-right:15px; width:20px; text-align:center;"></i> <b style="color:var(--text);">Aura Gold</b></div>
                 <div style="color:var(--gold); font-weight:bold;">$7.00</div>
             </div>
-
             <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Конфиденциальность</div>
             <div class="setting-row" onclick="togglePrivacy()">
                 <div><i class="fa-solid fa-eye-slash" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Скрыть данные профиля</div>
                 <div id="tog-priv" class="switch"></div>
             </div>
-
             <div style="margin-top: 25px; padding: 0 15px 10px; font-size: 13px; color: var(--accent); font-weight:bold; text-transform: uppercase;">Уведомления</div>
             <div class="setting-row" onclick="toggleNotif()">
                 <div><i class="fa-solid fa-bell" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Звук сообщений</div>
@@ -164,7 +164,6 @@
                 <div><i class="fa-solid fa-music" style="color:#708499; margin-right:15px; width:20px; text-align:center;"></i> Рингтон звонка</div>
                 <div id="ringtone-val" style="color:var(--accent); font-weight:500;"></div>
             </div>
-            
             <div class="setting-row" style="margin-top: 30px; justify-content: center; color: var(--danger);" onclick="logout()">
                 <b style="font-size: 16px;">Выйти из аккаунта</b>
             </div>
@@ -183,6 +182,16 @@
             </div>
         </div>
     </div>
+
+    <div id="modal-call" class="screen" style="z-index: 3000; background: rgba(15,23,33,0.95); justify-content: center; align-items: center; padding: 20px;">
+        <div class="avatar pulse" style="width: 120px; height: 120px; font-size: 50px; background: var(--accent); margin-bottom: 20px;" id="call-av"><i class="fa-solid fa-phone"></i></div>
+        <h2 id="call-status" style="margin-bottom: 50px;">Звонок...</h2>
+        <div style="display: flex; gap: 30px;">
+            <div class="avatar" style="width: 70px; height: 70px; background: var(--danger); font-size: 25px; cursor: pointer;" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i></div>
+            <div class="avatar" style="width: 70px; height: 70px; background: var(--call); font-size: 25px; cursor: pointer; display: none;" id="btn-accept-call" onclick="acceptCall()"><i class="fa-solid fa-phone"></i></div>
+        </div>
+        <audio id="remote-audio" autoplay></audio>
+    </div>
 </div>
 
 <script>
@@ -195,6 +204,11 @@
     let videoChunks = [];
     let lastMsgData = null;
     const sounds = { msg: new Audio('https://www.soundjay.com/buttons/beep-01a.mp3') };
+
+    let peerConnection;
+    let localStream;
+    let incomingCallData = null;
+    const iceServers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     const auth = {
         loginId: '',
@@ -245,7 +259,7 @@
     async function checkNet() {
         const t = document.getElementById('status');
         if(!navigator.onLine) { t.innerText = "Ожидание сети..."; return; }
-        try { await fetch('/api/ping'); t.innerText = "Midlegramm"; } catch(e) { t.innerText = "Обновление..."; }
+        try { await fetch('/api/ping'); t.innerText = "Aura"; } catch(e) { t.innerText = "Обновление..."; }
     }
 
     function toggleSearch() { const s = document.getElementById('search-box'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; }
@@ -276,6 +290,7 @@
         document.getElementById('chat-icon').style.background = color;
         document.getElementById('msgs').innerHTML = '';
         document.getElementById('admin-tools').style.display = isAdmin ? 'block' : 'none';
+        document.getElementById('btn-call').style.display = isGroup ? 'none' : 'block';
         document.getElementById('chat-input-area').style.display = (chatType === 'channel' && !isAdmin) ? 'none' : 'flex';
         
         const pinArea = document.getElementById('pin-area');
@@ -389,6 +404,71 @@
         socket.emit('action', { type, user, message: msg, admin: me.username, chat: curChat.user });
         toggleAdminPanel();
     }
+
+    async function startCall() {
+        if(!curChat || curChat.isGroup) return;
+        document.getElementById('modal-call').style.display = 'flex';
+        document.getElementById('call-status').innerText = 'Исходящий...';
+        document.getElementById('btn-accept-call').style.display = 'none';
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            peerConnection = new RTCPeerConnection(iceServers);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            peerConnection.onicecandidate = e => { if(e.candidate) socket.emit('ice_candidate', { to: curChat.user, candidate: e.candidate, from: me.username }); };
+            peerConnection.ontrack = e => { document.getElementById('remote-audio').srcObject = e.streams[0]; };
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('call_user', { offer, to: curChat.user, from: me.username });
+        } catch(e) { endCall(); }
+    }
+
+    socket.on('call_made', async (data) => {
+        incomingCallData = data;
+        document.getElementById('modal-call').style.display = 'flex';
+        document.getElementById('call-status').innerText = 'Звонок от ' + data.from;
+        document.getElementById('btn-accept-call').style.display = 'flex';
+    });
+
+    async function acceptCall() {
+        document.getElementById('btn-accept-call').style.display = 'none';
+        document.getElementById('call-status').innerText = 'На связи';
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            peerConnection = new RTCPeerConnection(iceServers);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            peerConnection.onicecandidate = e => { if(e.candidate) socket.emit('ice_candidate', { to: incomingCallData.from, candidate: e.candidate, from: me.username }); };
+            peerConnection.ontrack = e => { document.getElementById('remote-audio').srcObject = e.streams[0]; };
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('make_answer', { answer, to: incomingCallData.from, from: me.username });
+        } catch(e) { endCall(); }
+    }
+
+    socket.on('answer_made', async (data) => {
+        document.getElementById('call-status').innerText = 'На связи';
+        if(peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+    });
+
+    socket.on('ice_candidate', async (data) => {
+        if(peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+    });
+
+    function endCall() {
+        if(peerConnection) peerConnection.close();
+        if(localStream) localStream.getTracks().forEach(t => t.stop());
+        document.getElementById('modal-call').style.display = 'none';
+        const target = curChat ? curChat.user : (incomingCallData ? incomingCallData.from : null);
+        if(target) socket.emit('end_call', { to: target });
+        incomingCallData = null;
+    }
+
+    socket.on('call_ended', () => {
+        if(peerConnection) peerConnection.close();
+        if(localStream) localStream.getTracks().forEach(t => t.stop());
+        document.getElementById('modal-call').style.display = 'none';
+        incomingCallData = null;
+    });
 
     function renderSettings() {
         document.getElementById('my-name').innerText = me.name;
