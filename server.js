@@ -4,7 +4,6 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const nodemailer = require('nodemailer');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,13 +14,10 @@ app.use(cors());
 
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
-const GMAIL_USER = "auragram9860@gmail.com";
-const GMAIL_PASS = process.env.GMAIL_APP_PASS;
 
 const User = mongoose.model('User', new mongoose.Schema({
-    name: String, email: { type: String, unique: true }, username: { type: String, unique: true },
-    password: { type: String }, otp: String, isVerified: { type: Boolean, default: false },
-    socketId: String, avatarColor: String, isGold: { type: Boolean, default: true },
+    name: String, username: { type: String, unique: true },
+    password: { type: String }, socketId: String, avatarColor: String, isGold: { type: Boolean, default: true },
     sessions: { type: Array, default: [] },
     settings: { hideData: { type: Boolean, default: false }, notifications: { type: Boolean, default: true }, ringtone: { type: String, default: 'default' } }
 }));
@@ -30,28 +26,6 @@ const Chat = mongoose.model('Chat', new mongoose.Schema({
     title: String, username: { type: String, unique: true }, type: String,
     owner: String, admins: [String], members: [String], mutes: [String], pinnedMessage: Object
 }));
-
-async function sendMail(email, otp) {
-    let transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-            user: GMAIL_USER,
-            pass: GMAIL_PASS
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000
-    });
-    
-    return await transporter.sendMail({
-        from: `"Midlegram" <${GMAIL_USER}>`,
-        to: email,
-        subject: "Код подтверждения Midlegram",
-        text: `Ваш код доступа: ${otp}`
-    });
-}
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/api/ping', (req, res) => res.send('ok'));
@@ -63,17 +37,14 @@ server.listen(PORT, '0.0.0.0', () => {
 });
 
 app.post('/api/register', async (req, res) => {
-    const { name, email, username, password } = req.body;
-    const otp = Math.floor(10000 + Math.random() * 90000).toString();
+    const { name, username, password } = req.body;
     try {
-        await User.findOneAndUpdate({ email }, 
-            { name, username, password, otp, isVerified: false, avatarColor: '#'+Math.floor(Math.random()*16777215).toString(16) }, 
-            { upsert: true }
-        );
-        await sendMail(email, otp);
-        res.json({ success: true, maskedEmail: email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
+        let user = await User.findOne({ username });
+        if (user) return res.status(400).send("User exists");
+        user = new User({ name, username, password, avatarColor: '#'+Math.floor(Math.random()*16777215).toString(16) });
+        await user.save();
+        res.json({ success: true, user });
     } catch (e) { 
-        console.log("Register Error:", e);
         res.status(500).send("Error"); 
     }
 });
@@ -81,26 +52,13 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     const { login, password } = req.body;
     try {
-        const user = await User.findOne({ $or: [{ email: login }, { username: login }], password });
+        const user = await User.findOne({ username: login, password });
         if (user) {
-            const otp = Math.floor(10000 + Math.random() * 90000).toString();
-            user.otp = otp;
-            await user.save();
-            await sendMail(user.email, otp);
-            res.json({ success: true, maskedEmail: user.email.replace(/(.{2}).+(.{2}@.+)/, "$1******$2") });
+            res.json({ success: true, user });
         } else res.status(401).send("Error");
     } catch(e) { 
-        console.log("Login Error:", e);
         res.status(500).send("Error"); 
     }
-});
-
-app.post('/api/verify', async (req, res) => {
-    try {
-        const user = await User.findOne({ $or: [{ email: req.body.login }, { username: req.body.login }], otp: req.body.otp });
-        if (user) { user.otp = null; user.isVerified = true; await user.save(); res.json({ success: true, user }); }
-        else res.status(400).send("Error");
-    } catch(e) { res.status(500).send("Error"); }
 });
 
 app.post('/api/chat/create', async (req, res) => {
@@ -163,6 +121,7 @@ io.on('connection', (socket) => {
             let u = typeof d === 'string' ? d : d.username;
             let deviceId = typeof d === 'object' ? d.deviceId : 'unknown';
             let deviceName = typeof d === 'object' ? d.deviceName : 'Unknown';
+
             const user = await User.findOne({ username: u });
             if(user) {
                 user.socketId = socket.id;
