@@ -20,6 +20,7 @@ const User = mongoose.model('User', new mongoose.Schema({
     name: String, email: { type: String, unique: true }, username: { type: String, unique: true },
     password: { type: String }, otp: String, isVerified: { type: Boolean, default: false },
     socketId: String, avatarColor: String, isGold: { type: Boolean, default: true },
+    sessions: { type: Array, default: [] },
     settings: { hideData: { type: Boolean, default: false }, notifications: { type: Boolean, default: true }, ringtone: { type: String, default: 'default' } }
 }));
 
@@ -46,7 +47,6 @@ async function sendMail(email, otp) {
         
         return await apiInstance.sendTransacEmail(sendSmtpEmail);
     } catch (error) {
-        console.error(error.response ? error.response.body : error.message);
         throw error;
     }
 }
@@ -129,12 +129,51 @@ app.post('/api/user/buy-gold', async (req, res) => {
     } catch (e) { res.status(500).send("Error"); }
 });
 
+app.post('/api/sessions', async (req, res) => {
+    try {
+        const user = await User.findOne({ username: req.body.username });
+        res.json(user ? user.sessions : []);
+    } catch(e) { res.json([]); }
+});
+
+app.post('/api/sessions/terminate', async (req, res) => {
+    try {
+        const user = await User.findOne({ username: req.body.username });
+        if (user) {
+            const target = user.sessions.find(s => s.deviceId === req.body.deviceId);
+            if (target && target.socketId) {
+                io.to(target.socketId).emit('force_logout');
+            }
+            user.sessions = user.sessions.filter(s => s.deviceId !== req.body.deviceId);
+            await user.save();
+            res.json({ success: true });
+        }
+    } catch(e) { res.status(500).send("Error"); }
+});
+
 io.on('connection', (socket) => {
-    socket.on('identify', async (u) => { 
+    socket.on('identify', async (d) => { 
         try { 
-            await User.findOneAndUpdate({ username: u }, { socketId: socket.id }); 
-            const myChats = await Chat.find({ members: u });
-            myChats.forEach(c => socket.join(c.username));
+            let u = typeof d === 'string' ? d : d.username;
+            let deviceId = typeof d === 'object' ? d.deviceId : 'unknown';
+            let deviceName = typeof d === 'object' ? d.deviceName : 'Unknown';
+
+            const user = await User.findOne({ username: u });
+            if(user) {
+                user.socketId = socket.id;
+                let sIdx = user.sessions.findIndex(s => s.deviceId === deviceId);
+                const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString();
+                if(sIdx > -1) {
+                    user.sessions[sIdx].socketId = socket.id;
+                    user.sessions[sIdx].time = now;
+                    user.sessions[sIdx].deviceName = deviceName;
+                } else {
+                    user.sessions.push({ deviceId, deviceName, socketId: socket.id, time: now });
+                }
+                await User.updateOne({ username: u }, { socketId: socket.id, sessions: user.sessions });
+                const myChats = await Chat.find({ members: u });
+                myChats.forEach(c => socket.join(c.username));
+            }
         } catch(e){}
     });
     socket.on('typing', async (d) => {
